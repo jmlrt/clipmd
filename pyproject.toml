@@ -1,0 +1,100 @@
+[project]
+name = "clipmd"
+version = "0.1.0"
+description = "Clip, organize, and manage markdown articles - LLM workflow assistant"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.13"
+authors = [{ name = "Julien Mailleret" }]
+keywords = ["markdown", "articles", "web-clipper", "organizer", "llm"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Text Processing :: Markup :: Markdown",
+    "Typing :: Typed",
+]
+
+dependencies = [
+    "click>=8.1",
+    "pyyaml>=6.0",
+    "pydantic>=2.10",
+    "send2trash>=1.8",
+    "python-dateutil>=2.9",
+    "python-frontmatter>=1.1.0",
+    "rich>=13.9",
+    # Fetch dependencies
+    "httpx>=0.28",
+    "beautifulsoup4>=4.12",
+    "trafilatura>=2.0",
+    "markdownify>=0.14",
+    "feedparser>=6.0",
+]
+
+[project.optional-dependencies]
+lang = [
+    "langdetect>=1.0",
+]
+dev = [
+    "pytest>=8.3",
+    "pytest-cov>=6.0",
+    "ruff>=0.9",
+    "ty>=0.0.1a6",
+    "pre-commit>=4.0",
+]
+all = [
+    "clipmd[lang,dev]",
+]
+
+[project.scripts]
+clipmd = "clipmd.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/jmlrt/clipmd"
+Repository = "https://github.com/jmlrt/clipmd"
+Issues = "https://github.com/jmlrt/clipmd/issues"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/clipmd"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # isort
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "UP",     # pyupgrade
+    "ARG",    # flake8-unused-arguments
+    "SIM",    # flake8-simplify
+]
+ignore = ["E501"]  # line length handled by formatter
+
+[tool.ruff.lint.isort]
+known-first-party = ["clipmd"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short"
+
+[tool.coverage.run]
+source = ["src/clipmd"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]
