@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "updated": "2024-01-18T10:00:00Z",
+  "entries": {
+    "https://blog.example.com/sample-article": {
+      "filename": "20240115-Sample-Article.md",
+      "title": "Sample Article for Testing",
+      "folder": null,
+      "first_seen": "2024-01-16",
+      "last_seen": "2024-01-18",
+      "removed": false,
+      "content_hash": "a1b2c3d4e5f67890"
+    },
+    "https://docs.anthropic.com/claude/docs/getting-started": {
+      "filename": "20240110-Claude-API-Guide.md",
+      "title": "Getting Started with Claude API",
+      "folder": "AI-Tools",
+      "first_seen": "2024-01-11",
+      "last_seen": "2024-01-18",
+      "removed": false,
+      "content_hash": "b2c3d4e5f6789012"
+    },
+    "https://www.nasa.gov/news/exoplanet-discovery-2024": {
+      "filename": "20240112-Space-Discovery.md",
+      "title": "New Exoplanet Discovery",
+      "folder": "Science",
+      "first_seen": "2024-01-13",
+      "last_seen": "2024-01-18",
+      "removed": false,
+      "content_hash": "c3d4e5f678901234"
+    }
+  }
+}

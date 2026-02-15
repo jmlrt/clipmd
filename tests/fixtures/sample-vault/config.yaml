@@ -1,0 +1,56 @@
+# Test configuration for sample-vault
+version: 1
+
+paths:
+  root: "."
+  cache: ".clipmd/cache.json"
+
+special_folders:
+  exclude_patterns:
+    - "0-*"
+    - ".*"
+    - "_*"
+
+frontmatter:
+  source_url:
+    - source
+    - url
+  title:
+    - title
+  published_date:
+    - published
+  clipped_date:
+    - clipped
+  author:
+    - author
+  description:
+    - description
+
+dates:
+  input_formats:
+    - "%Y-%m-%d"
+    - "%B %d, %Y"
+    - "%d %B %Y"
+  output_format: "%Y%m%d"
+  prefix_priority:
+    - published
+    - clipped
+  extract_from_content: true
+
+url_cleaning:
+  remove_params:
+    - utm_source
+    - utm_medium
+    - utm_campaign
+
+filenames:
+  replacements:
+    " ": "-"
+    "_": "-"
+  lowercase: false
+  max_length: 100
+  collapse_dashes: true
+
+folders:
+  warn_below: 2
+  warn_above: 10
