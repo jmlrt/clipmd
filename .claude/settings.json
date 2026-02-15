@@ -1,0 +1,49 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(file:*)",
+      "Bash(gh pr:*)",
+      "Bash(git add:*)",
+      "Bash(git branch:*)",
+      "Bash(git checkout:*)",
+      "Bash(git commit:*)",
+      "Bash(git diff:*)",
+      "Bash(git fetch:*)",
+      "Bash(git log:*)",
+      "Bash(git mv:*)",
+      "Bash(git pull:*)",
+      "Bash(git push:*)",
+      "Bash(git reset:*)",
+      "Bash(git rm:*)",
+      "Bash(git show:*)",
+      "Bash(git stash:*)",
+      "Bash(git status:*)",
+      "Bash(git switch:*)",
+      "Bash(ls:*)",
+      "Bash(make:*)",
+      "Bash(mkdir:*)",
+      "Bash(pre-commit:*)",
+      "Bash(pwd:*)",
+      "Bash(python3:*)",
+      "Bash(rm -rf *.egg-info:*)",
+      "Bash(rm -rf .pytest_cache:*)",
+      "Bash(rm -rf .ruff_cache:*)",
+      "Bash(rm -rf __pycache__:*)",
+      "Bash(rm -rf build:*)",
+      "Bash(rm -rf dist:*)",
+      "Bash(rm -rf tests/fixtures/temp:*)",
+      "Bash(stat:*)",
+      "Bash(uv:*)",
+      "Bash(wc:*)",
+      "Bash(which:*)"
+    ],
+    "deny": [
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(rm -rf /*:*)",
+      "Bash(rm -rf ~:*)",
+      "Bash(rm -rf .:*)"
+    ]
+  }
+}
