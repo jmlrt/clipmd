@@ -102,6 +102,66 @@ def parse_categorization_file(content: str) -> list[MoveInstruction]:
     return instructions
 
 
+def _levenshtein_distance(s1: str, s2: str) -> int:
+    """Compute Levenshtein edit distance between two strings.
+
+    Args:
+        s1: First string.
+        s2: Second string.
+
+    Returns:
+        Number of single-character edits (insert/delete/replace) to transform s1 into s2.
+    """
+    m, n = len(s1), len(s2)
+    dp = list(range(n + 1))
+    for i in range(1, m + 1):
+        prev = dp[0]
+        dp[0] = i
+        for j in range(1, n + 1):
+            temp = dp[j]
+            if s1[i - 1] == s2[j - 1]:
+                dp[j] = prev
+            else:
+                dp[j] = 1 + min(prev, dp[j], dp[j - 1])
+            prev = temp
+    return dp[n]
+
+
+def find_suspicious_categories(
+    instructions: list[MoveInstruction],
+    source_dir: Path,
+    max_distance: int = 2,
+) -> dict[str, str]:
+    """Find new category names that closely resemble existing folder names.
+
+    Args:
+        instructions: List of move instructions.
+        source_dir: Source directory to check for existing folders.
+        max_distance: Maximum Levenshtein distance to consider suspicious.
+
+    Returns:
+        Dict mapping suspicious new category name → closest existing folder name.
+    """
+    existing_folders = {d.name for d in source_dir.iterdir() if d.is_dir()}
+    suspicious: dict[str, str] = {}
+
+    unique_categories = {i.category for i in instructions if not i.is_trash}
+    for category in unique_categories:
+        if category in existing_folders:
+            continue  # Exact match — not suspicious
+        best_match: str | None = None
+        best_dist = max_distance + 1
+        for folder in existing_folders:
+            dist = _levenshtein_distance(category, folder)
+            if dist <= max_distance and dist < best_dist:
+                best_dist = dist
+                best_match = folder
+        if best_match is not None:
+            suspicious[category] = best_match
+
+    return suspicious
+
+
 def execute_move(
     instruction: MoveInstruction,
     source_dir: Path,

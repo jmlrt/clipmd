@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `preprocess` now auto-strips Obsidian wikilink syntax (`[[Name]]`, `[[Page|Alias]]`) from frontmatter field values (e.g., `author` field)
 - `preprocess` now auto-repairs unclosed quote strings in frontmatter (e.g., `source: "https://example.com` missing closing `"`)
 - `fetch --file` now correctly handles tracking URLs with embedded `<>` markers (e.g., newsletter tracking links from La Quotidienne and TLDR)
+- `move` command now warns when a new folder name closely resembles an existing folder (Levenshtein distance ≤ 2) and prompts for confirmation before creating it
 
 ## [0.1.0] - 2024-01-20
 

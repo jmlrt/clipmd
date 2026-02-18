@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import patch
 
 from click.testing import CliRunner
 
@@ -301,6 +302,119 @@ Content.
         result = runner.invoke(main, ["move", str(cat_file), "--dry-run"])
         assert result.exit_code == 0
         assert "Cache updated" not in result.output
+
+
+class TestMoveFuzzyFolderMatch:
+    """Tests for fuzzy folder name matching in move command."""
+
+    def test_move_cmd_prompts_on_suspicious_folder(self, tmp_path: Path) -> None:
+        """Test that CLI prompts when a new folder name closely resembles an existing one."""
+        # Create existing folder
+        (tmp_path / "Life-Tips").mkdir()
+
+        # Create article
+        article = tmp_path / "20240115-Article.md"
+        article.write_text("---\ntitle: Test\n---\nContent.")
+
+        # Categorization with typo: "Lifr-Tips" instead of "Life-Tips"
+        cat_file = tmp_path / "categorization.txt"
+        cat_file.write_text("1. Lifr-Tips - 20240115-Article.md\n")
+
+        runner = CliRunner()
+        # Simulate user selecting "use-existing" to correct the typo
+        result = runner.invoke(
+            main,
+            ["move", str(cat_file), "--source-dir", str(tmp_path), "--no-cache-update"],
+            input="use-existing\n",
+        )
+        assert result.exit_code == 0
+        # File should be in Life-Tips (corrected), not Lifr-Tips (typo)
+        assert (tmp_path / "Life-Tips" / "20240115-Article.md").exists()
+        assert not (tmp_path / "Lifr-Tips").exists()
+
+    def test_move_cmd_skip_on_suspicious_folder(self, tmp_path: Path) -> None:
+        """Test that 'skip' action removes matching instructions from the move list."""
+        (tmp_path / "Life-Tips").mkdir()
+
+        article = tmp_path / "20240115-Article.md"
+        article.write_text("---\ntitle: Test\n---\nContent.")
+
+        cat_file = tmp_path / "categorization.txt"
+        cat_file.write_text("1. Lifr-Tips - 20240115-Article.md\n")
+
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            ["move", str(cat_file), "--source-dir", str(tmp_path), "--no-cache-update"],
+            input="skip\n",
+        )
+        assert result.exit_code == 0
+        # File should NOT be moved (skipped)
+        assert article.exists()
+        assert not (tmp_path / "Lifr-Tips").exists()
+
+    def test_move_cmd_create_anyway_on_suspicious_folder(self, tmp_path: Path) -> None:
+        """Test that 'create-anyway' proceeds with the original (typo) folder name."""
+        (tmp_path / "Life-Tips").mkdir()
+
+        article = tmp_path / "20240115-Article.md"
+        article.write_text("---\ntitle: Test\n---\nContent.")
+
+        cat_file = tmp_path / "categorization.txt"
+        cat_file.write_text("1. Lifr-Tips - 20240115-Article.md\n")
+
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            ["move", str(cat_file), "--source-dir", str(tmp_path), "--no-cache-update"],
+            input="create-anyway\n",
+        )
+        assert result.exit_code == 0
+        # File should be in the typo folder since user chose create-anyway
+        assert (tmp_path / "Lifr-Tips" / "20240115-Article.md").exists()
+
+    def test_move_cmd_no_prompt_on_dry_run(self, tmp_path: Path) -> None:
+        """Test that dry-run shows warning but does not prompt for suspicious folder."""
+        (tmp_path / "Life-Tips").mkdir()
+
+        article = tmp_path / "20240115-Article.md"
+        article.write_text("---\ntitle: Test\n---\nContent.")
+
+        cat_file = tmp_path / "categorization.txt"
+        cat_file.write_text("1. Lifr-Tips - 20240115-Article.md\n")
+
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            ["move", str(cat_file), "--dry-run", "--source-dir", str(tmp_path)],
+        )
+        assert result.exit_code == 0
+        # Dry run should show a warning about the suspicious folder
+        assert "Warning" in result.output or "similar" in result.output.lower()
+        # No file should have been moved
+        assert article.exists()
+
+    def test_move_cmd_no_prompt_for_exact_match(self, tmp_path: Path) -> None:
+        """Test no prompt when category exactly matches an existing folder."""
+        existing_folder = tmp_path / "Tech"
+        existing_folder.mkdir()
+
+        article = tmp_path / "20240115-Article.md"
+        article.write_text("---\ntitle: Test\n---\nContent.")
+
+        cat_file = tmp_path / "categorization.txt"
+        cat_file.write_text("1. Tech - 20240115-Article.md\n")
+
+        runner = CliRunner()
+        # No input needed — should not prompt
+        with patch("click.prompt") as mock_prompt:
+            result = runner.invoke(
+                main,
+                ["move", str(cat_file), "--source-dir", str(tmp_path), "--no-cache-update"],
+            )
+            mock_prompt.assert_not_called()
+        assert result.exit_code == 0
+        assert (existing_folder / "20240115-Article.md").exists()
 
 
 class TestMoveEdgeCases:

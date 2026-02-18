@@ -71,9 +71,45 @@ def move_command(
     if dry_run:
         console.print("[yellow]Dry run - no files will be moved[/yellow]\n")
 
-    # Execute move workflow
-    result = mover.execute_move_workflow(
-        categorization_file,
+    # Read and parse the categorization file
+    file_content = categorization_file.read_text(encoding="utf-8")
+    instructions = mover.parse_categorization_file(file_content)
+
+    if not instructions:
+        console.print("[yellow]No valid move instructions found[/yellow]")
+        return
+
+    # Pre-flight fuzzy folder check (skip in dry-run — just warn)
+    suspicious = mover.find_suspicious_categories(instructions, source_dir)
+    if suspicious:
+        for bad_category, similar_existing in suspicious.items():
+            if dry_run:
+                console.print(
+                    f"[yellow]Warning:[/yellow] New folder [bold]{bad_category}/[/bold] "
+                    f"closely resembles existing folder [bold]{similar_existing}/[/bold]"
+                )
+            else:
+                console.print(f"\n[yellow]⚠️  About to create new folder:[/yellow] {bad_category}/")
+                console.print(f"   Similar existing folder found: [bold]{similar_existing}/[/bold]")
+                action = click.prompt(
+                    "   Action?",
+                    type=click.Choice(["use-existing", "skip", "create-anyway"]),
+                    default="use-existing",
+                )
+                if action == "use-existing":
+                    for instr in instructions:
+                        if instr.category == bad_category:
+                            instr.category = similar_existing
+                elif action == "skip":
+                    instructions = [i for i in instructions if i.category != bad_category]
+
+    if not instructions:
+        console.print("[yellow]No valid move instructions remain after review[/yellow]")
+        return
+
+    # Execute moves
+    move_stats = mover.execute_moves(
+        instructions,
         source_dir,
         config,
         dry_run=dry_run,
@@ -81,15 +117,8 @@ def move_command(
         update_cache=not no_cache_update,
     )
 
-    # Handle empty categorization file
-    if result is None:
-        console.print("[yellow]No valid move instructions found[/yellow]")
-        return
-
-    instructions, stats = result
-
     # Display results
-    result_lines = mover.format_move_results(instructions, stats, dry_run=dry_run)
+    result_lines = mover.format_move_results(instructions, move_stats, dry_run=dry_run)
     for line in result_lines:
         console.print(line)
 
