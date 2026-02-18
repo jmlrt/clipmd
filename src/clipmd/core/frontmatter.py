@@ -259,6 +259,57 @@ def fix_multiline_wikilinks(text: str) -> tuple[str, list[FrontmatterFix]]:
     return fixed, fixes
 
 
+def fix_unclosed_quotes(text: str) -> tuple[str, list[FrontmatterFix]]:
+    """Fix unclosed quote strings in YAML frontmatter fields.
+
+    Handles lines like:
+        source: "https://example.com   (missing closing quote)
+        - "John Doe                    (list item with unclosed quote)
+
+    Args:
+        text: The raw frontmatter text.
+
+    Returns:
+        Tuple of (fixed text, list of fixes applied).
+    """
+    fixes: list[FrontmatterFix] = []
+    lines = text.split("\n")
+    fixed_lines = []
+
+    for line in lines:
+        stripped = line.rstrip()
+        # Match YAML key-value lines or list items where value starts with "
+        # Patterns: "  key: "value" or "  - "value"
+        key_value_re = re.compile(r'^(\s*\S+:\s+)(")(.*)')
+        list_item_re = re.compile(r'^(\s*-\s+)(")(.*)')
+
+        match = key_value_re.match(stripped) or list_item_re.match(stripped)
+        if match:
+            prefix = match.group(1)
+            value_body = match.group(3)
+            # Unclosed if value doesn't end with an unescaped "
+            if not value_body.endswith('"'):
+                # Strip inline comment if present: split at first ' #'
+                comment = ""
+                actual_body = value_body
+                if " #" in value_body:
+                    parts = value_body.split(" #", 1)
+                    actual_body = parts[0]
+                    comment = " #" + parts[1]
+                fixed_lines.append(f'{prefix}"{actual_body}"{comment}')
+                fixes.append(
+                    FrontmatterFix(
+                        fix_type="unclosed_quote",
+                        description=f"Closed unclosed quote in: {stripped!r}",
+                    )
+                )
+                continue
+
+        fixed_lines.append(line)
+
+    return "\n".join(fixed_lines), fixes
+
+
 def fix_unquoted_colons(text: str) -> tuple[str, list[FrontmatterFix]]:
     """Fix unquoted values containing colons.
 
@@ -327,6 +378,10 @@ def fix_frontmatter(raw_frontmatter: str) -> FixResult:
 
     # Strip wikilink syntax from field values
     text, fixes = fix_wikilinks(text)
+    all_fixes.extend(fixes)
+
+    # Fix unclosed quote strings
+    text, fixes = fix_unclosed_quotes(text)
     all_fixes.extend(fixes)
 
     # Fix multi-line wikilinks

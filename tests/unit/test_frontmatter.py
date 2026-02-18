@@ -9,6 +9,7 @@ from clipmd.core.frontmatter import (
     extract_field,
     fix_frontmatter,
     fix_multiline_wikilinks,
+    fix_unclosed_quotes,
     fix_unquoted_colons,
     fix_wikilinks,
     get_author,
@@ -204,6 +205,46 @@ class TestFixWikilinks:
         assert result.is_valid is True
         wikilink_fixes = [f for f in result.fixes if f.fix_type == "wikilink"]
         assert len(wikilink_fixes) == 1
+
+
+class TestFixUnclosedQuotes:
+    """Tests for fix_unclosed_quotes function."""
+
+    def test_fix_unclosed_quote_in_url_field(self) -> None:
+        """Test closing unclosed quote in a URL field."""
+        text = 'source: "https://example.com'
+        fixed, fixes = fix_unclosed_quotes(text)
+        assert fixed == 'source: "https://example.com"'
+        assert len(fixes) == 1
+        assert fixes[0].fix_type == "unclosed_quote"
+
+    def test_fix_unclosed_quote_in_list_item(self) -> None:
+        """Test closing unclosed quote in a list item."""
+        text = '  - "John Doe'
+        fixed, fixes = fix_unclosed_quotes(text)
+        assert fixed == '  - "John Doe"'
+        assert len(fixes) == 1
+
+    def test_properly_quoted_value_unchanged(self) -> None:
+        """Test that a properly closed quote is not modified."""
+        text = 'source: "https://example.com"'
+        fixed, fixes = fix_unclosed_quotes(text)
+        assert fixed == text
+        assert len(fixes) == 0
+
+    def test_unclosed_quote_with_inline_comment(self) -> None:
+        """Test that inline comment is preserved after fix."""
+        text = 'source: "https://example.com #comment'
+        fixed, fixes = fix_unclosed_quotes(text)
+        assert fixed == 'source: "https://example.com" #comment'
+        assert len(fixes) == 1
+
+    def test_fix_unclosed_quote_recorded_in_result(self) -> None:
+        """Test that fix_frontmatter records unclosed_quote fixes in FixResult."""
+        text = 'source: "https://example.com\ntitle: "My Article"'
+        result = fix_frontmatter(text)
+        quote_fixes = [f for f in result.fixes if f.fix_type == "unclosed_quote"]
+        assert len(quote_fixes) == 1
 
 
 class TestFixMultilineWikilinks:
