@@ -20,19 +20,16 @@ colons).
 
 ---
 
-### move: `--source-dir` required for subdirectory workflows
+### move: `--source-dir` not auto-detected
 
-**Priority**: High
+**Priority**: Medium
 
-When articles are stored in a subdirectory (e.g. `Inbox/`) rather than at
-the vault root, `clipmd move` defaults `source_dir` to `config.paths.root`
-and reports "File not found" for every entry. Users must remember to pass
-`--source-dir Inbox`.
+When articles are stored in a subdirectory (e.g. `Inbox/`), `clipmd move`
+now hints at the correct `--source-dir` value, but users still need to
+re-run with the flag explicitly.
 
-**Proposed fixes**:
-1. Auto-detect source directory from file paths in the categorization file
-2. Emit a helpful error message suggesting `--source-dir` when files are not
-   found at the configured root
+**Proposed fix**: Auto-detect source directory from file paths in the
+categorization file so users never need to pass `--source-dir` manually.
 
 ---
 

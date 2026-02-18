@@ -63,7 +63,8 @@ def move_command(
         console.print("[red]Error:[/red] No configuration loaded")
         raise SystemExit(1)
 
-    # Use config root if source_dir not specified
+    # Track whether --source-dir was explicitly passed
+    source_dir_explicit = source_dir is not None
     if source_dir is None:
         source_dir = config.paths.root
 
@@ -125,3 +126,16 @@ def move_command(
     # Show cache update message
     if not no_cache_update and not dry_run:
         console.print("Cache updated.")
+
+    # If files were not found and --source-dir was not explicitly set,
+    # search the vault for those files and suggest the right --source-dir
+    if not source_dir_explicit and not dry_run:
+        missing = [f for f, e in move_stats.errors if e == "File not found"]
+        if missing:
+            suggestions = mover.suggest_source_dir(missing, config.paths.root)
+            if suggestions:
+                dirs = ", ".join(f"[bold]{d}[/bold]" for d in suggestions)
+                console.print(
+                    f"\n[yellow]Hint:[/yellow] missing files found in {dirs} — "
+                    f"try [bold]--source-dir {suggestions[0]}[/bold]"
+                )

@@ -102,6 +102,33 @@ def parse_categorization_file(content: str) -> list[MoveInstruction]:
     return instructions
 
 
+def suggest_source_dir(missing_filenames: list[str], vault_root: Path) -> list[str]:
+    """Find subdirectories that contain files reported as missing in source_dir.
+
+    Used to suggest a `--source-dir` value when all or most files in a
+    categorization file are not found at the vault root.
+
+    Args:
+        missing_filenames: Filenames that were not found in source_dir.
+        vault_root: Root of the vault to search under.
+
+    Returns:
+        Sorted list of relative subdirectory names (e.g. ["Inbox", "Clippings"])
+        that contain at least one of the missing files.
+    """
+    found_dirs: set[str] = set()
+    for filename in missing_filenames:
+        for match in vault_root.rglob(filename):
+            # Only consider direct children of vault_root (one level deep)
+            try:
+                rel = match.relative_to(vault_root)
+                if len(rel.parts) == 2:  # subdir/filename
+                    found_dirs.add(rel.parts[0])
+            except ValueError:
+                pass
+    return sorted(found_dirs)
+
+
 def _levenshtein_distance(s1: str, s2: str) -> int:
     """Compute Levenshtein edit distance between two strings.
 

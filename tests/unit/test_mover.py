@@ -4,7 +4,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from clipmd.core.mover import MoveInstruction, _levenshtein_distance, find_suspicious_categories
+from clipmd.core.mover import (
+    MoveInstruction,
+    _levenshtein_distance,
+    find_suspicious_categories,
+    suggest_source_dir,
+)
 
 
 class TestLevenshteinDistance:
@@ -104,3 +109,35 @@ class TestFindSuspiciousCategories:
         # With max_distance=2 it SHOULD be flagged
         suspicious = find_suspicious_categories(instructions, tmp_path, max_distance=2)
         assert "Lif-Tps" in suspicious
+
+
+class TestSuggestSourceDir:
+    """Tests for suggest_source_dir function."""
+
+    def test_finds_subdirectory_containing_file(self, tmp_path: Path) -> None:
+        """Test that the subdirectory containing a missing file is suggested."""
+        inbox = tmp_path / "Inbox"
+        inbox.mkdir()
+        (inbox / "article.md").write_text("content")
+        result = suggest_source_dir(["article.md"], tmp_path)
+        assert result == ["Inbox"]
+
+    def test_returns_multiple_dirs_when_files_spread(self, tmp_path: Path) -> None:
+        """Test that multiple directories are returned when files are in different subdirs."""
+        (tmp_path / "Inbox").mkdir()
+        (tmp_path / "Inbox" / "article1.md").write_text("content")
+        (tmp_path / "Archive").mkdir()
+        (tmp_path / "Archive" / "article2.md").write_text("content")
+        result = suggest_source_dir(["article1.md", "article2.md"], tmp_path)
+        assert result == ["Archive", "Inbox"]
+
+    def test_returns_empty_when_file_not_found_anywhere(self, tmp_path: Path) -> None:
+        """Test that an empty list is returned when the file doesn't exist anywhere."""
+        result = suggest_source_dir(["nonexistent.md"], tmp_path)
+        assert result == []
+
+    def test_ignores_files_at_vault_root(self, tmp_path: Path) -> None:
+        """Test that files at vault root (not in a subdirectory) are not suggested."""
+        (tmp_path / "article.md").write_text("content")
+        result = suggest_source_dir(["article.md"], tmp_path)
+        assert result == []
