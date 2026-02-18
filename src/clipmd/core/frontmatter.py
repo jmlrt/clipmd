@@ -376,16 +376,17 @@ def fix_frontmatter(raw_frontmatter: str) -> FixResult:
     # Apply fixes in order
     text = raw_frontmatter
 
+    # Fix multi-line wikilinks (must run before fix_wikilinks so single-line
+    # regex can match the normalized result)
+    text, fixes = fix_multiline_wikilinks(text)
+    all_fixes.extend(fixes)
+
     # Strip wikilink syntax from field values
     text, fixes = fix_wikilinks(text)
     all_fixes.extend(fixes)
 
     # Fix unclosed quote strings
     text, fixes = fix_unclosed_quotes(text)
-    all_fixes.extend(fixes)
-
-    # Fix multi-line wikilinks
-    text, fixes = fix_multiline_wikilinks(text)
     all_fixes.extend(fixes)
 
     # Fix unquoted colons

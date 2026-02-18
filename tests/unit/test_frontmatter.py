@@ -206,6 +206,14 @@ class TestFixWikilinks:
         wikilink_fixes = [f for f in result.fixes if f.fix_type == "wikilink"]
         assert len(wikilink_fixes) == 1
 
+    def test_multiline_wikilinks_fixed_and_stripped(self) -> None:
+        """Test multiline wikilinks are normalized then stripped to plain text."""
+        text = "author: [[John\nDoe]]"
+        multiline_fixed, _ = fix_multiline_wikilinks(text)
+        fixed, fixes = fix_wikilinks(multiline_fixed)
+        assert fixed == "author: John Doe"
+        assert len(fixes) == 1
+
 
 class TestFixUnclosedQuotes:
     """Tests for fix_unclosed_quotes function."""
