@@ -199,6 +199,36 @@ def get_description(data: dict[str, Any], config: FrontmatterConfig) -> str | No
     return str(value) if value is not None else None
 
 
+def fix_wikilinks(text: str) -> tuple[str, list[FrontmatterFix]]:
+    """Strip wikilink syntax from frontmatter field values.
+
+    Converts [[Name]] to Name and [[Page|Alias]] to Alias.
+
+    Args:
+        text: The raw frontmatter text.
+
+    Returns:
+        Tuple of (fixed text, list of fixes applied).
+    """
+    fixes: list[FrontmatterFix] = []
+    wikilink_re = re.compile(r"\[\[([^\]|]+)(?:\|([^\]]+))?\]\]")
+
+    def replacer(match: re.Match[str]) -> str:
+        page_name = match.group(1).strip()
+        alias = match.group(2)
+        replacement = alias.strip() if alias else page_name
+        fixes.append(
+            FrontmatterFix(
+                fix_type="wikilink",
+                description=f"Stripped wikilink syntax: {match.group(0)} → {replacement}",
+            )
+        )
+        return replacement
+
+    fixed = wikilink_re.sub(replacer, text)
+    return fixed, fixes
+
+
 def fix_multiline_wikilinks(text: str) -> tuple[str, list[FrontmatterFix]]:
     """Fix multi-line wikilinks in frontmatter text.
 
@@ -294,6 +324,10 @@ def fix_frontmatter(raw_frontmatter: str) -> FixResult:
 
     # Apply fixes in order
     text = raw_frontmatter
+
+    # Strip wikilink syntax from field values
+    text, fixes = fix_wikilinks(text)
+    all_fixes.extend(fixes)
 
     # Fix multi-line wikilinks
     text, fixes = fix_multiline_wikilinks(text)

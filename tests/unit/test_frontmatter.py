@@ -10,6 +10,7 @@ from clipmd.core.frontmatter import (
     fix_frontmatter,
     fix_multiline_wikilinks,
     fix_unquoted_colons,
+    fix_wikilinks,
     get_author,
     get_description,
     get_published_date,
@@ -162,6 +163,47 @@ class TestFieldExtractors:
         data = {"description": "A short summary"}
         result = get_description(data, self.config)
         assert result == "A short summary"
+
+
+class TestFixWikilinks:
+    """Tests for fix_wikilinks function."""
+
+    def test_fix_wikilinks_in_author_field(self) -> None:
+        """Test stripping simple wikilink from a field value."""
+        text = "author: [[John Doe]]"
+        fixed, fixes = fix_wikilinks(text)
+        assert fixed == "author: John Doe"
+        assert len(fixes) == 1
+        assert fixes[0].fix_type == "wikilink"
+
+    def test_fix_wikilinks_with_alias(self) -> None:
+        """Test that alias takes precedence in [[Page|Alias]] syntax."""
+        text = "author: [[John Doe Page|John Doe]]"
+        fixed, fixes = fix_wikilinks(text)
+        assert fixed == "author: John Doe"
+        assert len(fixes) == 1
+
+    def test_fix_wikilinks_in_yaml_list(self) -> None:
+        """Test stripping wikilinks from YAML list items."""
+        text = "tags:\n  - [[Python]]\n  - [[Programming]]"
+        fixed, fixes = fix_wikilinks(text)
+        assert fixed == "tags:\n  - Python\n  - Programming"
+        assert len(fixes) == 2
+
+    def test_no_wikilinks_unchanged(self) -> None:
+        """Test that content without wikilinks is unchanged."""
+        text = "author: John Doe\ntitle: Some Title"
+        fixed, fixes = fix_wikilinks(text)
+        assert fixed == text
+        assert len(fixes) == 0
+
+    def test_fix_wikilinks_recorded_in_result(self) -> None:
+        """Test that fix_frontmatter records wikilink fixes in FixResult."""
+        text = 'author: [[Jane Smith]]\ntitle: "An Article"'
+        result = fix_frontmatter(text)
+        assert result.is_valid is True
+        wikilink_fixes = [f for f in result.fixes if f.fix_type == "wikilink"]
+        assert len(wikilink_fixes) == 1
 
 
 class TestFixMultilineWikilinks:

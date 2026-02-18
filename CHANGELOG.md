@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `preprocess` now auto-strips Obsidian wikilink syntax (`[[Name]]`, `[[Page|Alias]]`) from frontmatter field values (e.g., `author` field)
+
 ## [0.1.0] - 2024-01-20
 
 ### Added
