@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `stats` command now accepts an optional `PATH` argument to scope statistics to a subdirectory (e.g., `clipmd stats Clippings/`)
+
 ### Fixed
 
 - `preprocess` now auto-strips Obsidian wikilink syntax (`[[Name]]`, `[[Page|Alias]]`) from frontmatter field values (e.g., `author` field)
