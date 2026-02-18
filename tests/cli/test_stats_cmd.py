@@ -163,3 +163,64 @@ class TestStatsCommand:
         result = runner.invoke(main, ["stats", "--include-special"])
         assert result.exit_code == 0
         assert "0-Inbox" in result.output
+
+    def test_stats_with_path_argument(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test stats scoped to a subdirectory via PATH argument."""
+        monkeypatch.chdir(tmp_path)
+
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text("version: 1\npaths:\n  root: .\n")
+
+        # Create articles in two subdirectories
+        sub1 = tmp_path / "Clippings"
+        sub1.mkdir()
+        for i in range(3):
+            (sub1 / f"clip{i}.md").write_text(f"---\ntitle: Clip {i}\n---\nContent.")
+
+        sub2 = tmp_path / "Tech"
+        sub2.mkdir()
+        for i in range(5):
+            (sub2 / f"tech{i}.md").write_text(f"---\ntitle: Tech {i}\n---\nContent.")
+
+        runner = CliRunner()
+        result = runner.invoke(main, ["stats", str(sub1)])
+        assert result.exit_code == 0
+        # Should count only articles in Clippings
+        assert "3 articles" in result.output
+
+    def test_stats_without_path_uses_config_root(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test that stats without PATH argument uses vault root."""
+        monkeypatch.chdir(tmp_path)
+
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text("version: 1\npaths:\n  root: .\n")
+
+        folder = tmp_path / "Tech"
+        folder.mkdir()
+        for i in range(4):
+            (folder / f"article{i}.md").write_text(f"---\ntitle: Article {i}\n---\nContent.")
+
+        runner = CliRunner()
+        result = runner.invoke(main, ["stats"])
+        assert result.exit_code == 0
+        assert "4 articles" in result.output
+
+    def test_stats_path_must_be_directory(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test that passing a file path (not directory) raises an error."""
+        monkeypatch.chdir(tmp_path)
+
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text("version: 1\npaths:\n  root: .\n")
+
+        some_file = tmp_path / "article.md"
+        some_file.write_text("---\ntitle: Test\n---\nContent.")
+
+        runner = CliRunner()
+        result = runner.invoke(main, ["stats", str(some_file)])
+        assert result.exit_code != 0

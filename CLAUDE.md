@@ -139,6 +139,53 @@ For generic architectural patterns, see the **python-development** skill in Clau
 
 All clipmd commands follow these patterns with core logic in `core/` modules and thin CLI wrappers (50-150 lines) in `commands/`.
 
+## TODO.md and NOTES.md
+
+### TODO.md (committed)
+
+`TODO.md` tracks open issues, planned features, and refactoring opportunities
+for the **public repo**. Keep it generic and impersonal — no session dates,
+vault-specific folder names, file counts, or personal workarounds.
+
+**Structure:**
+
+```markdown
+## Bug Fixes        ← open issues with user-visible impact
+## Features         ← planned commands, flags, or behaviors
+## Refactoring      ← internal code quality improvements
+```
+
+**Each entry format:**
+
+```markdown
+### <command>: <short description>
+
+**Priority**: Critical | High | Medium | Low
+
+<One or two sentences describing the problem.>
+
+**Proposed fix**: <what to implement, with example output if helpful>
+```
+
+**Rules:**
+- Remove entries once the fix is merged to `main`
+- No "✅ FIXED" markers — just delete resolved entries
+- No personal observations ("I saw 188 files…"), workarounds, or session notes
+- Use generic folder names in examples (`Inbox/`, `Articles/`), not vault-specific ones
+
+### NOTES.md (local only, gitignored)
+
+`NOTES.md` is the personal counterpart to `TODO.md`. It is listed in
+`.gitignore` and never committed.
+
+**What belongs in NOTES.md:**
+- Session observations with specific file counts and vault folder names
+- Workaround scripts used before a fix landed
+- Investigation notes and reproduction steps for tricky issues
+- Personal triage workflow goals and ideal command sequences
+- Documentation update plans for personal workflow docs (e.g. clipping-triage.md)
+- Refactoring roadmap with timeline estimates and phase completion notes
+
 ## Git Workflow
 
 When staging and committing changes, ensure ONLY changes from the current task are included. Review staged files against the current session scope before committing.
