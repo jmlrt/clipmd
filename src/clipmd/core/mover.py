@@ -365,7 +365,7 @@ def _update_cache_after_moves(
     """
     cache_path = config.paths.cache
     if not cache_path.is_absolute():
-        cache_path = source_dir / cache_path
+        cache_path = config.paths.root / cache_path
     cache = load_cache(cache_path)
 
     for instruction in instructions:
