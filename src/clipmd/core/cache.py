@@ -430,7 +430,9 @@ def filter_duplicate_urls(
     Returns:
         FilterResult with filtered and skipped URLs.
     """
-    cache_path = config.paths.root / config.paths.cache
+    cache_path = config.paths.cache
+    if not cache_path.is_absolute():
+        cache_path = config.paths.root / cache_path
     cache = load_cache(cache_path)
 
     filtered_urls = []
@@ -461,7 +463,9 @@ def update_cache_after_fetch(
         results: List of fetch results.
         config: Application configuration.
     """
-    cache_path = config.paths.root / config.paths.cache
+    cache_path = config.paths.cache
+    if not cache_path.is_absolute():
+        cache_path = config.paths.root / cache_path
     cache = load_cache(cache_path)
 
     for result in results:
