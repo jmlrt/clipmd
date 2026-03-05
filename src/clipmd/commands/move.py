@@ -77,8 +77,10 @@ def move_command(
 
     # Validate that source directory exists after normalization
     if not source_dir.exists():
-        console.print(f"[red]Error:[/red] Source directory not found: {source_dir}")
-        raise SystemExit(1)
+        raise click.BadParameter(
+            f"Source directory not found: {source_dir}",
+            param_hint="--source-dir",
+        )
 
     # Determine destination root for moves
     # Use vault root as destination when source_dir is a subdirectory of it

@@ -257,14 +257,12 @@ def _extract_tracking_destination(url: str) -> str | None:
     if match:
         return match.group(1)
 
-    # Try percent-encoded pattern (https%3A%2F%2F)
-    match = re.search(r"/(?:L\d+|CL\d+)/(https?%3A%2F%2F.*)", url)
+    # Try percent-encoded pattern (https%3A%2F%2F or https%3a%2f%2f)
+    # Case-insensitive to handle various encoding formats
+    match = re.search(r"/(?:L\d+|CL\d+)/(https?%[0-9a-fA-F]{2}.*)", url, re.IGNORECASE)
     if match:
         encoded = match.group(1)
-        try:
-            return unquote(encoded)
-        except Exception:
-            pass
+        return unquote(encoded)
 
     return None
 
@@ -577,7 +575,7 @@ async def orchestrate_fetch(
             feed_urls = await fetch_rss_feed(all_urls[0], config, rss_limit)
             feed_entry_count = len(feed_urls)
             all_urls = feed_urls
-        except (httpx.HTTPError, httpx.RequestError) as e:
+        except httpx.HTTPError as e:
             return FetchOrchestrationResult(
                 process_result=ProcessResult(stats=FetchStats(total=0)),
                 fetch_results=[],

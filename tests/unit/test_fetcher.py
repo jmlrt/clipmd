@@ -38,6 +38,12 @@ class TestExtractTrackingDestination:
         result = _extract_tracking_destination(url)
         assert result == "https://dest.org/page?q=1"
 
+    def test_extract_lowercase_percent_encoded_url(self) -> None:
+        """Test extracting destination from lowercase percent-encoded format."""
+        url = "https://tracker.example.com/L0/https%3a%2f%2fdest.org%2farticle"
+        result = _extract_tracking_destination(url)
+        assert result == "https://dest.org/article"
+
     def test_non_tracking_url_returns_none(self) -> None:
         """Test that non-tracking URLs return None."""
         url = "https://example.com/regular/article"
