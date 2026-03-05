@@ -75,10 +75,15 @@ def move_command(
 
     assert source_dir is not None  # type: ignore[assert-type]
 
-    # Validate that source directory exists after normalization
+    # Validate that source directory exists and is a directory after normalization
     if not source_dir.exists():
         raise click.BadParameter(
             f"Source directory not found: {source_dir}",
+            param_hint="--source-dir",
+        )
+    if not source_dir.is_dir():
+        raise click.BadParameter(
+            f"Source path is not a directory: {source_dir}",
             param_hint="--source-dir",
         )
 

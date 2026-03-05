@@ -93,7 +93,7 @@ def duplicates_command(
         output.write_text(output_text, encoding="utf-8")
         console.print(f"Duplicates saved to: {output}")
     else:
-        console.print(output_text)
+        click.echo(output_text)
 
     # Summary
     total_groups = len(result.by_url) + len(result.by_hash) + len(result.by_filename)

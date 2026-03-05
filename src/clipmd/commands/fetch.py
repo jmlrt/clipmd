@@ -157,7 +157,7 @@ def fetch_command(
         if output_format == "json":
             # Output JSON even on error so machine consumers get structured output
             formatted = format_fetch_json_output(orch_result)
-            console.print(formatted)
+            click.echo(formatted)
         else:
             console.print(f"[red]Error:[/red] Failed to fetch RSS feed: {orch_result.rss_error}")
         raise SystemExit(1)
@@ -165,7 +165,7 @@ def fetch_command(
     # Format and display output
     if output_format == "json":
         formatted = format_fetch_json_output(orch_result)
-        console.print(formatted)
+        click.echo(formatted)
     else:
         display_options = FetchDisplayOptions(
             output_format=output_format,
