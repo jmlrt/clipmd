@@ -6,20 +6,6 @@ Known issues, planned features, and improvements for `clipmd`.
 
 ## Bug Fixes
 
-### preprocess: error output lacks actionable guidance
-
-**Priority**: Medium
-
-When `clipmd preprocess` reports frontmatter validation errors, the output lists
-the affected files but provides no guidance on how to fix them.
-
-**Proposed fix**: Add `--fix-errors` flag or interactive mode to attempt
-auto-repair of remaining common frontmatter issues beyond the current automatic
-fixes (multiline wikilinks, single-line wikilinks, unclosed quotes, unquoted
-colons).
-
----
-
 ### move: `--source-dir` not auto-detected
 
 **Priority**: Medium
@@ -70,26 +56,6 @@ resolution with user confirmation.
 
 ---
 
-### fetch: truncated tracking URLs not automatically recovered
-
-**Priority**: Medium
-
-When `clipmd fetch` reports an HTTP 400 error on a truncated tracking URL
-(ending in `/L0/https` or `/CL0/https`), the actual destination URL is still
-URL-encoded in the path and recoverable. Currently the user must extract and
-re-fetch manually.
-
-**Proposed fix**: After a fetch failure, detect known tracking URL patterns
-and auto-retry the decoded destination URL:
-
-```
-✗ https://tracker.example.com/L0/https: HTTP 400
-  ↳ Detected truncated tracking URL — retrying destination...
-  ✓ https://www.example.com/article (recovered)
-```
-
----
-
 ### fetch: JavaScript-gated pages saved as empty stubs
 
 **Priority**: Low
@@ -102,25 +68,6 @@ JS-disabled stub and saves it as a valid-looking `.md` file with
 "JavaScript is disabled" or content under ~200 chars) and either:
 1. Skip saving with a clear error message
 2. Save with `status: requires-manual-content` frontmatter and a warning
-
----
-
-### fetch: RSS feed failure aborts all remaining feeds
-
-**Priority**: Medium
-
-When one RSS feed fails (network error, invalid URL, malformed XML),
-`clipmd fetch --rss` exits immediately and does not process remaining feeds.
-
-**Proposed fix**: Make RSS feed failures non-blocking — process all feeds,
-collect errors, and report at the end:
-
-```
-✗ https://broken-feed.example.com/rss: Connection timeout
-✓ https://example.com/atom/everything/ — 10 saved
-
-Summary: 1 feed failed, 1 feed succeeded
-```
 
 ---
 
