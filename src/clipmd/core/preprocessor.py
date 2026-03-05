@@ -372,12 +372,18 @@ def format_preprocess_summary(
             lines.append(f"  - {url}")
             for _, file_path in group:
                 lines.append(f"    - {file_path}")
-        lines.append("  [Use --auto-remove-dupes or manually resolve]\n")
+        lines.append("  [Use `clipmd duplicates` to resolve]\n")
 
     if stats.errors:
         lines.append(f"\n[red]Errors: {len(stats.errors)}[/red]")
         for file_path, error in stats.errors:
             lines.append(f"  - {file_path}: {error}")
+        lines.append(
+            "\n  [yellow]Tip:[/yellow] Open each file and fix the YAML frontmatter manually.\n"
+            "  Common issues: unclosed quotes, colons in unquoted values, "
+            "invalid unicode characters.\n"
+            "  Run [bold]clipmd preprocess[/bold] again after fixing."
+        )
 
     ready_count = stats.scanned - len(stats.errors)
     lines.append(f"\nReady for categorization: {ready_count} files")
