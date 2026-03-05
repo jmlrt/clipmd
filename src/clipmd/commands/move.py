@@ -69,6 +69,24 @@ def move_command(
 
     if source_dir is None:
         source_dir = config.paths.root
+    elif source_dir_is_relative:
+        # Normalize relative paths against vault root
+        source_dir = config.paths.root / source_dir
+
+    assert source_dir is not None  # type: ignore[assert-type]
+
+    # Determine destination root for moves
+    # Use vault root as destination when source_dir is a subdirectory of it
+    dest_root = None
+    if source_dir_explicit and source_dir != config.paths.root:
+        # Check if source_dir is within vault root (subdirectory)
+        try:
+            source_dir.relative_to(config.paths.root)
+            # If we get here, source_dir is within vault root
+            dest_root = config.paths.root
+        except ValueError:
+            # source_dir is not within vault root (e.g., absolute temp path in tests)
+            pass
 
     # Display dry run message if applicable
     if dry_run:
@@ -83,7 +101,6 @@ def move_command(
         return
 
     # Pre-flight fuzzy folder check (skip in dry-run — just warn)
-    dest_root = config.paths.root if source_dir_is_relative else None
     suspicious = mover.find_suspicious_categories(instructions, source_dir, dest_root=dest_root)
     if suspicious:
         for bad_category, similar_existing in suspicious.items():
