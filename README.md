@@ -100,7 +100,10 @@ clipmd preprocess --dry-run
 ```
 
 **What it does:**
-- Fixes invalid YAML frontmatter
+- Fixes invalid YAML frontmatter:
+  - Strips Obsidian wikilink syntax (`[[Name]]`, `[[Page|Alias]]`) from field values
+  - Repairs unclosed quote strings (e.g. `source: "https://example.com` → adds closing `"`)
+  - Fixes multi-line wikilinks and unquoted colons
 - Cleans tracking parameters from URLs
 - Sanitizes filenames
 - Adds date prefixes (from frontmatter or content)
@@ -151,6 +154,9 @@ clipmd move categorization.txt
 
 # Dry run
 clipmd move --dry-run categorization.txt
+
+# Specify source directory (when articles are in a subdirectory)
+clipmd move --source-dir Inbox categorization.txt
 ```
 
 **Input format (categorization.txt):**
@@ -163,13 +169,21 @@ clipmd move --dry-run categorization.txt
 3. TRASH - duplicate-article.md
 ```
 
+**Smart checks:**
+- If a new folder name closely resembles an existing one (e.g. `Sceince` vs `Science`),
+  prompts to confirm before creating it — preventing silent categorization mistakes
+- If files are not found at the vault root, hints at the subdirectory to pass as `--source-dir`
+
 ### Statistics
 
 ```bash
-# View folder statistics
+# View folder statistics for vault root
 clipmd stats
 
-# Only show warnings
+# Scope to a subdirectory
+clipmd stats Inbox/
+
+# Only show folders outside configured thresholds
 clipmd stats --warnings-only
 
 # JSON output

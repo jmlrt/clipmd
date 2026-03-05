@@ -37,11 +37,17 @@ def extract_url_from_line(line: str) -> str | None:
         if url.startswith(("http://", "https://")):
             return url
 
-    # Try to extract URL from angle brackets: <url>
-    angle_bracket_pattern = r"<(https?://[^>]+)>"
-    angle_match = re.search(angle_bracket_pattern, line)
-    if angle_match:
-        return angle_match.group(1).strip()
+    # Handle angle bracket URLs (including tracking URLs with embedded <>)
+    if "<http" in line:
+        # Strip ALL angle brackets — handles tracking URLs like:
+        # <https://tracker.com/L0/https>:%2F%2F<www.example.com>%2Fpath
+        stripped = line.replace("<", "").replace(">", "").strip()
+        if stripped.startswith(("http://", "https://")) and " " not in stripped:
+            return stripped
+        # Fallback: simple <url> pattern (e.g., "<https://example.com> some text")
+        angle_match = re.search(r"<(https?://[^>]+)>", line)
+        if angle_match:
+            return angle_match.group(1).strip()
 
     # Strip inline comments (text after # with space before)
     if " #" in line:

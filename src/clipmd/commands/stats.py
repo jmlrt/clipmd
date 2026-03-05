@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import click
 from rich.console import Console
 
@@ -12,6 +14,12 @@ console = Console()
 
 
 @click.command("stats")
+@click.argument(
+    "path",
+    type=click.Path(exists=True, file_okay=False, path_type=Path),
+    required=False,
+    default=None,
+)
 @click.option(
     "--format",
     "output_format",
@@ -32,11 +40,12 @@ console = Console()
 @click.pass_context
 def stats_command(
     ctx: click.Context,
+    path: Path | None,
     output_format: str,
     warnings_only: bool,
     include_special: bool,
 ) -> None:
-    """Display folder statistics.
+    """Display folder statistics for PATH (default: vault root).
 
     Shows article counts per folder with warnings for folders
     outside the configured min/max thresholds.
@@ -48,7 +57,8 @@ def stats_command(
         console.print("[red]Error:[/red] No configuration loaded")
         raise SystemExit(1)
 
-    folder_stats = stats.collect_folder_stats(config.paths.root, config, include_special)
+    target_path = path or config.paths.root
+    folder_stats = stats.collect_folder_stats(target_path, config, include_special)
 
     if warnings_only:
         folder_stats.folders = [f for f in folder_stats.folders if f.warning]

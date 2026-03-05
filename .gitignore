@@ -94,6 +94,7 @@ Thumbs.db
 # Project specific
 .clipmd/cache.json
 *.log
+NOTES.md
 
 # Test artifacts
 tests/fixtures/temp/

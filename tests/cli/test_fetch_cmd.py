@@ -1033,6 +1033,23 @@ class TestExtractUrlFromLine:
         url = extract_url_from_line("<not-a-url>")
         assert url is None
 
+    def test_tracking_url_with_embedded_angle_brackets(self) -> None:
+        """Test tracking URL with embedded <> markers is extracted fully."""
+        # Tracking URL where angle brackets wrap parts of the URL
+        line = "<https://tracker.com/L0/https>:%2F%2F<www.example.com>%2Fpath"
+        url = extract_url_from_line(line)
+        assert url == "https://tracker.com/L0/https:%2F%2Fwww.example.com%2Fpath"
+
+    def test_simple_angle_bracket_url_still_works(self) -> None:
+        """Test simple <url> pattern still works after the fix."""
+        url = extract_url_from_line("<https://example.com/page>")
+        assert url == "https://example.com/page"
+
+    def test_angle_bracket_url_with_trailing_text(self) -> None:
+        """Test <url> with trailing text uses fallback to extract just the URL."""
+        url = extract_url_from_line("<https://example.com/page> is a great site")
+        assert url == "https://example.com/page"
+
 
 class TestExtractMetaRefreshUrl:
     """Tests for extract_meta_refresh_url function."""
