@@ -92,11 +92,11 @@ clipmd fetch --dry-run "https://example.com/article"
 # Clean and prepare articles
 clipmd preprocess
 
-# Auto-remove duplicates
-clipmd preprocess --auto-remove-dupes
-
 # Dry run
 clipmd preprocess --dry-run
+
+# Find and manage duplicates
+clipmd duplicates --by-url
 ```
 
 **What it does:**
@@ -270,21 +270,24 @@ See [SPEC.md](SPEC.md) for full configuration reference.
 # 1. Fetch articles
 clipmd fetch -f reading-list.txt
 
-# 2. Preprocess (clean, dedupe)
-clipmd preprocess --auto-remove-dupes
+# 2. Preprocess (clean URLs, sanitize filenames, fix frontmatter)
+clipmd preprocess
 
-# 3. Extract metadata for LLM
+# 3. Find duplicates (optional)
+clipmd duplicates --by-url
+
+# 4. Extract metadata for LLM
 clipmd extract --folders > articles-metadata.txt
 
-# 4. [LLM reads articles-metadata.txt and generates categorization.txt]
+# 5. [LLM reads articles-metadata.txt and generates categorization.txt]
 # Example LLM prompt:
 # "Categorize these articles into the existing folders.
 #  Output format: 'N. FolderName - filename.md'"
 
-# 5. Execute categorization
+# 6. Execute categorization
 clipmd move categorization.txt
 
-# 6. View results
+# 7. View results
 clipmd stats
 ```
 
