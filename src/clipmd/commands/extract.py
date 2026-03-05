@@ -99,4 +99,4 @@ def extract_command(
         output.write_text(formatted, encoding="utf-8")
         console.print(f"Metadata written to {output}")
     else:
-        console.print(formatted)
+        click.echo(formatted)
