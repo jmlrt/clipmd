@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 import httpx
 import trafilatura
@@ -244,7 +244,7 @@ def _extract_tracking_destination(url: str) -> str | None:
     """Extract destination URL from truncated tracking URL.
 
     Some tracking services truncate long URLs, embedding the actual destination
-    in the path (e.g., /L0/https://actual-destination.com/...).
+    in the path (e.g., /L0/https://actual-destination.com/... or /L0/https%3A%2F%2F...).
 
     Args:
         url: The tracking URL that may contain an embedded destination.
@@ -252,9 +252,20 @@ def _extract_tracking_destination(url: str) -> str | None:
     Returns:
         The extracted destination URL if found, None otherwise.
     """
+    # Try literal URL pattern first
     match = re.search(r"/(?:L\d+|CL\d+)/(https?://.*)", url)
     if match:
         return match.group(1)
+
+    # Try percent-encoded pattern (https%3A%2F%2F)
+    match = re.search(r"/(?:L\d+|CL\d+)/(https?%3A%2F%2F.*)", url)
+    if match:
+        encoded = match.group(1)
+        try:
+            return unquote(encoded)
+        except Exception:
+            pass
+
     return None
 
 
@@ -577,7 +588,9 @@ async def orchestrate_fetch(
     # Filter duplicates
     skipped_urls = []
     if check_duplicates:
-        filter_result = filter_duplicate_urls(all_urls, config)
+        # For RSS feeds, skip removed URLs to avoid re-downloading trashed articles
+        # For regular fetches, allow re-fetching of previously removed URLs
+        filter_result = filter_duplicate_urls(all_urls, config, skip_removed=rss)
         skipped_urls = filter_result.skipped_urls
         all_urls = filter_result.filtered_urls
 
