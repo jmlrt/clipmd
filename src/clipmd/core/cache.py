@@ -434,7 +434,7 @@ def filter_duplicate_urls(
     skipped_urls = []
 
     for url in urls:
-        if cache.has_active_url(url):
+        if cache.has_url(url):
             skipped_urls.append(url)
         else:
             filtered_urls.append(url)
