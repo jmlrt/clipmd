@@ -65,6 +65,8 @@ def move_command(
 
     # Track whether --source-dir was explicitly passed
     source_dir_explicit = source_dir is not None
+    source_dir_is_relative = source_dir is not None and not source_dir.is_absolute()
+
     if source_dir is None:
         source_dir = config.paths.root
 
@@ -81,7 +83,8 @@ def move_command(
         return
 
     # Pre-flight fuzzy folder check (skip in dry-run — just warn)
-    suspicious = mover.find_suspicious_categories(instructions, source_dir)
+    dest_root = config.paths.root if source_dir_is_relative else None
+    suspicious = mover.find_suspicious_categories(instructions, source_dir, dest_root=dest_root)
     if suspicious:
         for bad_category, similar_existing in suspicious.items():
             if dry_run:
@@ -116,6 +119,7 @@ def move_command(
         dry_run=dry_run,
         create_folders=create_folders,
         update_cache=not no_cache_update,
+        dest_root=dest_root,
     )
 
     # Display results
