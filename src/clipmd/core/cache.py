@@ -417,12 +417,15 @@ class FilterResult:
 def filter_duplicate_urls(
     urls: list[str],
     config: Config,
+    skip_removed: bool = False,
 ) -> FilterResult:
     """Filter URLs already in cache.
 
     Args:
         urls: List of URLs to filter.
         config: Application configuration.
+        skip_removed: If True, also skip URLs marked as removed (for RSS feeds).
+                     If False, only skip active URLs (for regular fetches).
 
     Returns:
         FilterResult with filtered and skipped URLs.
@@ -434,7 +437,10 @@ def filter_duplicate_urls(
     skipped_urls = []
 
     for url in urls:
-        if cache.has_url(url):
+        # Use has_url() if skip_removed=True (RSS feeds shouldn't re-download trashed articles)
+        # Use has_active_url() if skip_removed=False (regular fetches can re-fetch removed URLs)
+        check_func = cache.has_url if skip_removed else cache.has_active_url
+        if check_func(url):
             skipped_urls.append(url)
         else:
             filtered_urls.append(url)
