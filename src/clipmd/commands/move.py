@@ -35,7 +35,7 @@ console = Console()
 )
 @click.option(
     "--source-dir",
-    type=click.Path(exists=True, file_okay=False, path_type=Path),
+    type=click.Path(file_okay=False, path_type=Path),
     help="Source directory (default: config root)",
 )
 @click.pass_context
@@ -74,6 +74,11 @@ def move_command(
         source_dir = config.paths.root / source_dir
 
     assert source_dir is not None  # type: ignore[assert-type]
+
+    # Validate that source directory exists after normalization
+    if not source_dir.exists():
+        console.print(f"[red]Error:[/red] Source directory not found: {source_dir}")
+        raise SystemExit(1)
 
     # Determine destination root for moves
     # Use vault root as destination when source_dir is a subdirectory of it

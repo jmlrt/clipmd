@@ -45,10 +45,11 @@ class TestExtractTrackingDestination:
         assert result is None
 
     def test_malformed_encoded_url(self) -> None:
-        """Test that malformed encoding returns None gracefully."""
-        # Invalid percent encoding should fail gracefully
+        """Test that malformed encoding extracts partial result gracefully."""
+        # Invalid percent encoding should still extract something (unquote is lenient)
         url = "https://tracker.example.com/L0/https%3A%2F%2F%ZZ%invalid"
         result = _extract_tracking_destination(url)
-        # The function should handle this gracefully (return None or attempt decode)
-        # Current implementation catches exceptions, so it should return None
-        assert result is None or isinstance(result, str)
+        # unquote() is lenient and will partially decode invalid sequences
+        # The important thing is that the function doesn't crash
+        assert result is not None
+        assert result.startswith("https://")  # Should at least have the protocol
