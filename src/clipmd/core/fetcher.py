@@ -240,6 +240,24 @@ def generate_filename(
     return f"{date_str}-{title_part}.md"
 
 
+def _extract_tracking_destination(url: str) -> str | None:
+    """Extract destination URL from truncated tracking URL.
+
+    Some tracking services truncate long URLs, embedding the actual destination
+    in the path (e.g., /L0/https://actual-destination.com/...).
+
+    Args:
+        url: The tracking URL that may contain an embedded destination.
+
+    Returns:
+        The extracted destination URL if found, None otherwise.
+    """
+    match = re.search(r"/(?:L\d+|CL\d+)/(https?://.*)", url)
+    if match:
+        return match.group(1)
+    return None
+
+
 async def fetch_url(
     client: httpx.AsyncClient,
     url: str,
@@ -258,6 +276,8 @@ async def fetch_url(
         FetchResult with extracted content and metadata.
     """
     result = FetchResult(url=url)
+    html: str | None = None
+    final_url: str | None = None
 
     try:
         response = await client.get(url, follow_redirects=True)
@@ -280,14 +300,34 @@ async def fetch_url(
                 # If redirect fails, use original content
                 pass
 
-        result.final_url = final_url
-
     except httpx.HTTPStatusError as e:
-        result.error = f"HTTP {e.response.status_code}"
-        return result
+        # Special handling for HTTP 400: try to extract and recover destination URL
+        if e.response.status_code == 400:
+            recovered = _extract_tracking_destination(url)
+            if recovered:
+                try:
+                    response = await client.get(recovered, follow_redirects=True)
+                    response.raise_for_status()
+                    html = response.text
+                    final_url = str(response.url)
+                except (httpx.HTTPStatusError, httpx.RequestError):
+                    # Recovery failed, will set error below
+                    pass
+
+        # If no HTML was obtained, set error and return
+        if html is None:
+            result.error = f"HTTP {e.response.status_code}"
+            return result
     except httpx.RequestError as e:
         result.error = f"Request failed: {e}"
         return result
+
+    # If we got here without HTML, something went wrong
+    if html is None:
+        result.error = "Failed to retrieve content"
+        return result
+
+    result.final_url = final_url
 
     # Use final URL for content extraction (after redirects)
     effective_url = result.final_url or url
