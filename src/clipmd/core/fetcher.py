@@ -470,6 +470,7 @@ class FetchOrchestrationResult:
     fetch_results: list[FetchResult] = field(default_factory=list)
     skipped_urls: list[str] = field(default_factory=list)
     feed_entry_count: int | None = None
+    rss_error: str | None = None
 
 
 async def orchestrate_fetch(
@@ -521,9 +522,17 @@ async def orchestrate_fetch(
                 fetch_results=[],
                 skipped_urls=[],
             )
-        feed_urls = await fetch_rss_feed(all_urls[0], config, rss_limit)
-        feed_entry_count = len(feed_urls)
-        all_urls = feed_urls
+        try:
+            feed_urls = await fetch_rss_feed(all_urls[0], config, rss_limit)
+            feed_entry_count = len(feed_urls)
+            all_urls = feed_urls
+        except (httpx.HTTPError, httpx.RequestError) as e:
+            return FetchOrchestrationResult(
+                process_result=ProcessResult(stats=FetchStats(total=0)),
+                fetch_results=[],
+                skipped_urls=[],
+                rss_error=str(e),
+            )
 
     # Filter duplicates
     skipped_urls = []

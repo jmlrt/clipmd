@@ -152,6 +152,11 @@ def fetch_command(
         console.print(f"[red]Error:[/red] {e}")
         raise SystemExit(1) from e
 
+    # Check for RSS feed errors
+    if orch_result.rss_error:
+        console.print(f"[red]Error:[/red] Failed to fetch RSS feed: {orch_result.rss_error}")
+        raise SystemExit(1)
+
     # Format and display output
     if output_format == "json":
         formatted = format_fetch_json_output(orch_result)
