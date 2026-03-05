@@ -381,7 +381,7 @@ def format_preprocess_summary(
         lines.append(
             "\n  [yellow]Tip:[/yellow] Open each file and fix the YAML frontmatter manually.\n"
             "  Common issues: unclosed quotes, colons in unquoted values, "
-            "invalid unicode characters.\n"
+            "invalid Unicode characters.\n"
             "  Run [bold]clipmd preprocess[/bold] again after fixing."
         )
 
