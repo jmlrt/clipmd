@@ -319,9 +319,12 @@ async def fetch_url(
                     response.raise_for_status()
                     html = response.text
                     final_url = str(response.url)
-                except (httpx.HTTPStatusError, httpx.RequestError):
-                    # Recovery failed — report with context so users know it was attempted
-                    result.error = f"HTTP 400 (tracking URL recovery failed: {recovered})"
+                except (httpx.HTTPStatusError, httpx.RequestError) as recovery_err:
+                    # Recovery failed — include both the recovered URL and the
+                    # underlying exception so users can diagnose the root cause
+                    result.error = (
+                        f"HTTP 400 (tracking URL recovery failed: {recovered}: {recovery_err})"
+                    )
                     return result
 
         # If no HTML was obtained, set error and return
