@@ -329,7 +329,7 @@ def execute_moves(
             continue
 
         # Execute the move
-        result = execute_move(instruction, source_dir, create_folders, dest_root)
+        result = execute_move(instruction, source_dir, create_folders, dest_root=dest_root)
 
         if result.success:
             if result.trashed:
@@ -344,7 +344,7 @@ def execute_moves(
 
     # Update cache if requested
     if update_cache and not dry_run:
-        _update_cache_after_moves(instructions, source_dir, config, dest_root)
+        _update_cache_after_moves(instructions, source_dir, config, dest_root=dest_root)
 
     return stats
 

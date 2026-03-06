@@ -320,8 +320,9 @@ async def fetch_url(
                     html = response.text
                     final_url = str(response.url)
                 except (httpx.HTTPStatusError, httpx.RequestError):
-                    # Recovery failed, will set error below
-                    pass
+                    # Recovery failed — report with context so users know it was attempted
+                    result.error = f"HTTP 400 (tracking URL recovery failed: {recovered})"
+                    return result
 
         # If no HTML was obtained, set error and return
         if html is None:
@@ -576,11 +577,12 @@ async def orchestrate_fetch(
             feed_entry_count = len(feed_urls)
             all_urls = feed_urls
         except httpx.HTTPError as e:
+            feed_url = all_urls[0]
             return FetchOrchestrationResult(
                 process_result=ProcessResult(stats=FetchStats(total=0)),
                 fetch_results=[],
                 skipped_urls=[],
-                rss_error=str(e),
+                rss_error=f"{feed_url}: {e}",
             )
 
     # Filter duplicates

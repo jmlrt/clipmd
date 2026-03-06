@@ -87,15 +87,21 @@ def move_command(
             param_hint="--source-dir",
         )
 
+    # Resolve both paths after existence is confirmed so that any `..` components
+    # are eliminated before the containment check (lexical relative_to() can be
+    # bypassed with paths like `root/../outside`).
+    source_dir = source_dir.resolve()
+    vault_root = config.paths.root.resolve()
+
     # Determine destination root for moves
     # Use vault root as destination when source_dir is a subdirectory of it
     dest_root = None
-    if source_dir_explicit and source_dir != config.paths.root:
+    if source_dir_explicit and source_dir != vault_root:
         # Check if source_dir is within vault root (subdirectory)
         try:
-            source_dir.relative_to(config.paths.root)
+            source_dir.relative_to(vault_root)
             # If we get here, source_dir is within vault root
-            dest_root = config.paths.root
+            dest_root = vault_root
         except ValueError:
             # source_dir is not within vault root (e.g., absolute temp path in tests)
             pass
