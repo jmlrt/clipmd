@@ -319,6 +319,21 @@ async def fetch_url(
                     response.raise_for_status()
                     html = response.text
                     final_url = str(response.url)
+
+                    # Apply the same meta-refresh/JS redirect handling used in the
+                    # main success path so recovered URLs behave consistently.
+                    meta_redirect = extract_meta_refresh_url(html)
+                    if meta_redirect:
+                        try:
+                            redirect_response = await client.get(
+                                meta_redirect, follow_redirects=True
+                            )
+                            redirect_response.raise_for_status()
+                            html = redirect_response.text
+                            final_url = str(redirect_response.url)
+                        except (httpx.HTTPStatusError, httpx.RequestError):
+                            # If redirect fails, fall back to the recovered response content.
+                            pass
                 except (httpx.HTTPStatusError, httpx.RequestError) as recovery_err:
                     # Recovery failed — include both the recovered URL and the
                     # underlying exception so users can diagnose the root cause
