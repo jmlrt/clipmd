@@ -379,10 +379,11 @@ def format_preprocess_summary(
         for file_path, error in stats.errors:
             lines.append(f"  - {file_path}: {error}")
         lines.append(
-            "\n  [yellow]Tip:[/yellow] Open each file and fix the YAML frontmatter manually.\n"
+            "\n  [yellow]Tip:[/yellow] Some errors may be caused by invalid YAML frontmatter.\n"
+            "  If an error mentions YAML or frontmatter, open that file and fix it manually.\n"
             "  Common issues: unclosed quotes, colons in unquoted values, "
             "invalid Unicode characters.\n"
-            "  Run [bold]clipmd preprocess[/bold] again after fixing."
+            "  After fixing any YAML issues, run [bold]clipmd preprocess[/bold] again."
         )
 
     ready_count = stats.scanned - len(stats.errors)

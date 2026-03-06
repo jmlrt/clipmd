@@ -583,6 +583,216 @@ class TestFetchUrls:
         assert "Request failed" in result.error
 
 
+class TestFetchUrlTracking400Recovery:
+    """Tests for HTTP 400 tracking URL recovery in fetch_url."""
+
+    def _make_config(self, tmp_path: Path, monkeypatch) -> object:
+        from clipmd.config import load_config
+
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "config.yaml").write_text("version: 1\npaths:\n  root: .\n")
+        return load_config(tmp_path / "config.yaml")
+
+    def test_http_400_with_embedded_tracking_url_recovers(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """HTTP 400 on a tracking URL recovers by retrying the embedded destination."""
+        import asyncio
+
+        import httpx
+
+        from clipmd.core.fetcher import fetch_url
+
+        config = self._make_config(tmp_path, monkeypatch)
+
+        tracking_url = "https://tracker.example.com/L0/https://actual-dest.com/article"
+
+        # First call (tracking URL) → 400; second call (recovered URL) → 200
+        mock_400_response = AsyncMock()
+        mock_400_response.status_code = 400
+        mock_400_error = httpx.HTTPStatusError(
+            "Bad Request", request=None, response=mock_400_response
+        )
+
+        mock_success_response = AsyncMock()
+        mock_success_response.text = (
+            "<html><head><title>Article</title></head><body>Content</body></html>"
+        )
+        mock_success_response.raise_for_status = lambda: None
+        mock_success_response.url = "https://actual-dest.com/article"
+
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(side_effect=[mock_400_error, mock_success_response])
+
+        result = asyncio.run(fetch_url(mock_client, tracking_url, config, use_readability=False))
+
+        assert result.success
+        assert result.final_url == "https://actual-dest.com/article"
+        assert result.error is None
+
+    def test_http_400_with_embedded_percent_encoded_url_recovers(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """HTTP 400 on a percent-encoded tracking URL recovers by retrying decoded destination."""
+        import asyncio
+
+        import httpx
+
+        from clipmd.core.fetcher import fetch_url
+
+        config = self._make_config(tmp_path, monkeypatch)
+
+        # Percent-encoded tracking URL
+        tracking_url = "https://tracker.example.com/L0/https%3A%2F%2Factual-dest.com%2Farticle"
+
+        mock_400_response = AsyncMock()
+        mock_400_response.status_code = 400
+        mock_400_error = httpx.HTTPStatusError(
+            "Bad Request", request=None, response=mock_400_response
+        )
+
+        mock_success_response = AsyncMock()
+        mock_success_response.text = (
+            "<html><head><title>Article</title></head><body>Content</body></html>"
+        )
+        mock_success_response.raise_for_status = lambda: None
+        mock_success_response.url = "https://actual-dest.com/article"
+
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(side_effect=[mock_400_error, mock_success_response])
+
+        result = asyncio.run(fetch_url(mock_client, tracking_url, config, use_readability=False))
+
+        assert result.success
+        assert result.final_url == "https://actual-dest.com/article"
+
+    def test_http_400_recovery_fails_includes_details_in_error(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """When tracking URL recovery fails, error includes recovered URL and reason."""
+        import asyncio
+
+        import httpx
+
+        from clipmd.core.fetcher import fetch_url
+
+        config = self._make_config(tmp_path, monkeypatch)
+
+        tracking_url = "https://tracker.example.com/L0/https://actual-dest.com/article"
+
+        mock_400_response = AsyncMock()
+        mock_400_response.status_code = 400
+        mock_400_error = httpx.HTTPStatusError(
+            "Bad Request", request=None, response=mock_400_response
+        )
+
+        mock_403_response = AsyncMock()
+        mock_403_response.status_code = 403
+        mock_403_error = httpx.HTTPStatusError(
+            "Forbidden", request=None, response=mock_403_response
+        )
+
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(side_effect=[mock_400_error, mock_403_error])
+
+        result = asyncio.run(fetch_url(mock_client, tracking_url, config))
+
+        assert not result.success
+        assert "HTTP 400" in result.error
+        assert "recovery failed" in result.error
+        assert "actual-dest.com" in result.error
+
+    def test_http_400_without_embedded_url_returns_400_error(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """HTTP 400 on a non-tracking URL sets error to 'HTTP 400' with no recovery attempt."""
+        import asyncio
+
+        import httpx
+
+        from clipmd.core.fetcher import fetch_url
+
+        config = self._make_config(tmp_path, monkeypatch)
+
+        mock_400_response = AsyncMock()
+        mock_400_response.status_code = 400
+        mock_400_error = httpx.HTTPStatusError(
+            "Bad Request", request=None, response=mock_400_response
+        )
+
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(side_effect=mock_400_error)
+
+        result = asyncio.run(fetch_url(mock_client, "https://example.com/regular-page", config))
+
+        assert not result.success
+        assert result.error == "HTTP 400"
+        # Should only have been called once (no retry)
+        mock_client.get.assert_called_once()
+
+
+class TestFetchRssError:
+    """Tests for RSS feed error handling in the fetch command."""
+
+    def test_rss_error_text_format_shows_error_and_exits_nonzero(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """RSS feed failure prints error message and exits non-zero (text format)."""
+        import httpx
+
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "config.yaml").write_text("version: 1\npaths:\n  root: .\n")
+
+        with patch(
+            "clipmd.core.fetcher.fetch_rss_feed",
+            new_callable=AsyncMock,
+            side_effect=httpx.HTTPError("Connection failed"),
+        ):
+            runner = CliRunner()
+            result = runner.invoke(
+                main,
+                ["fetch", "--rss", "https://example.com/feed", "--no-cache-update"],
+            )
+
+        assert result.exit_code != 0
+        assert "RSS" in result.output or "feed" in result.output.lower()
+        assert "Connection failed" in result.output or "Failed" in result.output
+
+    def test_rss_error_json_format_emits_valid_json_and_exits_nonzero(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """RSS feed failure with --format json outputs valid JSON including rss_error."""
+        import json
+
+        import httpx
+
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "config.yaml").write_text("version: 1\npaths:\n  root: .\n")
+
+        with patch(
+            "clipmd.core.fetcher.fetch_rss_feed",
+            new_callable=AsyncMock,
+            side_effect=httpx.HTTPError("Connection failed"),
+        ):
+            runner = CliRunner()
+            result = runner.invoke(
+                main,
+                [
+                    "fetch",
+                    "--rss",
+                    "https://example.com/feed",
+                    "--format",
+                    "json",
+                    "--no-cache-update",
+                ],
+            )
+
+        assert result.exit_code != 0
+        parsed = json.loads(result.output)
+        assert "rss_error" in parsed
+        assert parsed["rss_error"] is not None
+
+
 class TestCacheUpdate:
     """Tests for cache updates after fetch."""
 
