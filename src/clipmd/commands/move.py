@@ -73,7 +73,7 @@ def move_command(
         # Normalize relative paths against vault root
         source_dir = config.paths.root / source_dir
 
-    assert source_dir is not None  # type: ignore[assert-type]
+    assert source_dir is not None
 
     # Validate that source directory exists and is a directory after normalization
     if not source_dir.exists():
