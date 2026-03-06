@@ -5,7 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from clipmd.core.cache import Cache, CacheEntry, load_cache
+from clipmd.config import Config
+from clipmd.core.cache import Cache, CacheEntry, filter_duplicate_urls, load_cache
 
 
 class TestCacheEntry:
@@ -414,3 +415,105 @@ class TestCacheUrlCleaning:
         assert "https://example.com/article" in cache.entries
         entry = cache.get(messy_url)
         assert entry is not None
+
+
+class TestFilterDuplicateUrls:
+    """Tests for filter_duplicate_urls function."""
+
+    def _make_config(self, tmp_path: Path, cache_path: Path | None = None) -> Config:
+        """Create a minimal config pointing at tmp_path."""
+        from clipmd.config import load_config
+
+        config_file = tmp_path / "config.yaml"
+        if cache_path is None:
+            config_file.write_text("version: 1\npaths:\n  root: .\n")
+        else:
+            config_file.write_text(f"version: 1\npaths:\n  root: .\n  cache: {cache_path}\n")
+        return load_config(config_file)
+
+    def test_active_url_skipped_by_default(self, tmp_path: Path, monkeypatch) -> None:
+        """Active URLs are skipped when skip_removed=False (default)."""
+        monkeypatch.chdir(tmp_path)
+        config = self._make_config(tmp_path)
+
+        # Pre-populate cache at the default location (.clipmd/cache.json)
+        cache_dir = tmp_path / ".clipmd"
+        cache_dir.mkdir(exist_ok=True)
+        cache = Cache()
+        cache.add("https://example.com/article", "article.md", "Article")
+        cache.save(cache_dir / "cache.json")
+
+        result = filter_duplicate_urls(
+            ["https://example.com/article", "https://example.com/new"],
+            config,
+            skip_removed=False,
+        )
+        assert "https://example.com/article" in result.skipped_urls
+        assert "https://example.com/new" in result.filtered_urls
+
+    def test_removed_url_not_skipped_when_skip_removed_false(
+        self, tmp_path: Path, monkeypatch
+    ) -> None:
+        """Removed URLs are NOT skipped when skip_removed=False (regular fetch)."""
+        monkeypatch.chdir(tmp_path)
+        config = self._make_config(tmp_path)
+
+        cache_dir = tmp_path / ".clipmd"
+        cache_dir.mkdir(exist_ok=True)
+        cache = Cache()
+        cache.add("https://example.com/article", "article.md", "Article")
+        cache.mark_removed("https://example.com/article")
+        cache.save(cache_dir / "cache.json")
+
+        result = filter_duplicate_urls(
+            ["https://example.com/article"],
+            config,
+            skip_removed=False,
+        )
+        # Removed entry should pass through for regular fetches
+        assert "https://example.com/article" in result.filtered_urls
+        assert result.skipped_urls == []
+
+    def test_removed_url_skipped_when_skip_removed_true(self, tmp_path: Path, monkeypatch) -> None:
+        """Removed URLs ARE skipped when skip_removed=True (RSS feeds)."""
+        monkeypatch.chdir(tmp_path)
+        config = self._make_config(tmp_path)
+
+        cache_dir = tmp_path / ".clipmd"
+        cache_dir.mkdir(exist_ok=True)
+        cache = Cache()
+        cache.add("https://example.com/article", "article.md", "Article")
+        cache.mark_removed("https://example.com/article")
+        cache.save(cache_dir / "cache.json")
+
+        result = filter_duplicate_urls(
+            ["https://example.com/article"],
+            config,
+            skip_removed=True,
+        )
+        # Removed entry should be skipped for RSS
+        assert "https://example.com/article" in result.skipped_urls
+        assert result.filtered_urls == []
+
+    def test_absolute_cache_path_used_directly(self, tmp_path: Path, monkeypatch) -> None:
+        """Absolute paths.cache is used as-is, not joined to paths.root."""
+        monkeypatch.chdir(tmp_path)
+        # Place cache in a separate directory to prove it's read at the absolute path
+        cache_dir = tmp_path / "external_cache"
+        cache_dir.mkdir()
+        abs_cache = cache_dir / "cache.json"
+
+        config = self._make_config(tmp_path, cache_path=abs_cache)
+
+        # Write a cache entry at the absolute path
+        cache = Cache()
+        cache.add("https://example.com/article", "article.md", "Article")
+        cache.save(abs_cache)
+
+        result = filter_duplicate_urls(
+            ["https://example.com/article"],
+            config,
+            skip_removed=False,
+        )
+        # Should have read the absolute-path cache and found the entry
+        assert "https://example.com/article" in result.skipped_urls

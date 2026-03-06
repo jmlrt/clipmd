@@ -113,4 +113,6 @@ def format_fetch_json_output(orch_result: FetchOrchestrationResult) -> str:
         "saved": stats.saved,
         "errors": [{"url": url, "error": err} for url, err in stats.errors],
     }
+    if orch_result.rss_error:
+        output_data["rss_error"] = orch_result.rss_error
     return json.dumps(output_data, indent=2)

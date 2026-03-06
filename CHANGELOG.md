@@ -13,6 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `extract` command no longer wraps long filenames at terminal width (outputs raw text for LLM processing)
+- `move` command now resolves destination folders to vault root when `--source-dir` is a relative path (fixes nested folder creation)
+- `fetch --rss` no longer re-downloads articles that were previously trashed
+- `fetch --rss` now reports RSS feed errors clearly instead of crashing silently
+- `fetch` now recovers destination URLs from truncated tracking URLs (patterns like `/L0/https` or `/CL0/https`) after HTTP 400 errors
+- `preprocess` error output now includes actionable guidance for fixing YAML frontmatter issues
+- `preprocess` now directs users to `clipmd duplicates` command instead of non-existent `--auto-remove-dupes` flag
 - `preprocess` now auto-strips Obsidian wikilink syntax (`[[Name]]`, `[[Page|Alias]]`) from frontmatter field values (e.g., `author` field)
 - `preprocess` now auto-repairs unclosed quote strings in frontmatter (e.g., `source: "https://example.com` missing closing `"`)
 - `fetch --file` now correctly handles tracking URLs with embedded `<>` markers (e.g., newsletter tracking links from La Quotidienne and TLDR)

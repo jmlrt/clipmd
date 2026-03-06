@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 import httpx
 import trafilatura
@@ -240,6 +240,33 @@ def generate_filename(
     return f"{date_str}-{title_part}.md"
 
 
+def _extract_tracking_destination(url: str) -> str | None:
+    """Extract destination URL from truncated tracking URL.
+
+    Some tracking services truncate long URLs, embedding the actual destination
+    in the path (e.g., /L0/https://actual-destination.com/... or /L0/https%3A%2F%2F...).
+
+    Args:
+        url: The tracking URL that may contain an embedded destination.
+
+    Returns:
+        The extracted destination URL if found, None otherwise.
+    """
+    # Try literal URL pattern first
+    match = re.search(r"/(?:L\d+|CL\d+)/(https?://.*)", url)
+    if match:
+        return match.group(1)
+
+    # Try percent-encoded pattern (https%3A%2F%2F or https%3a%2f%2f)
+    # Case-insensitive to handle various encoding formats
+    match = re.search(r"/(?:L\d+|CL\d+)/(https?%[0-9a-fA-F]{2}.*)", url, re.IGNORECASE)
+    if match:
+        encoded = match.group(1)
+        return unquote(encoded)
+
+    return None
+
+
 async def fetch_url(
     client: httpx.AsyncClient,
     url: str,
@@ -258,6 +285,8 @@ async def fetch_url(
         FetchResult with extracted content and metadata.
     """
     result = FetchResult(url=url)
+    html: str | None = None
+    final_url: str | None = None
 
     try:
         response = await client.get(url, follow_redirects=True)
@@ -280,14 +309,53 @@ async def fetch_url(
                 # If redirect fails, use original content
                 pass
 
-        result.final_url = final_url
-
     except httpx.HTTPStatusError as e:
-        result.error = f"HTTP {e.response.status_code}"
-        return result
+        # Special handling for HTTP 400: try to extract and recover destination URL
+        if e.response.status_code == 400:
+            recovered = _extract_tracking_destination(url)
+            if recovered:
+                try:
+                    response = await client.get(recovered, follow_redirects=True)
+                    response.raise_for_status()
+                    html = response.text
+                    final_url = str(response.url)
+
+                    # Apply the same meta-refresh/JS redirect handling used in the
+                    # main success path so recovered URLs behave consistently.
+                    meta_redirect = extract_meta_refresh_url(html)
+                    if meta_redirect:
+                        try:
+                            redirect_response = await client.get(
+                                meta_redirect, follow_redirects=True
+                            )
+                            redirect_response.raise_for_status()
+                            html = redirect_response.text
+                            final_url = str(redirect_response.url)
+                        except (httpx.HTTPStatusError, httpx.RequestError):
+                            # If redirect fails, fall back to the recovered response content.
+                            pass
+                except (httpx.HTTPStatusError, httpx.RequestError) as recovery_err:
+                    # Recovery failed — include both the recovered URL and the
+                    # underlying exception so users can diagnose the root cause
+                    result.error = (
+                        f"HTTP 400 (tracking URL recovery failed: {recovered}: {recovery_err})"
+                    )
+                    return result
+
+        # If no HTML was obtained, set error and return
+        if html is None:
+            result.error = f"HTTP {e.response.status_code}"
+            return result
     except httpx.RequestError as e:
         result.error = f"Request failed: {e}"
         return result
+
+    # If we got here without HTML, something went wrong
+    if html is None:
+        result.error = "Failed to retrieve content"
+        return result
+
+    result.final_url = final_url
 
     # Use final URL for content extraction (after redirects)
     effective_url = result.final_url or url
@@ -470,6 +538,7 @@ class FetchOrchestrationResult:
     fetch_results: list[FetchResult] = field(default_factory=list)
     skipped_urls: list[str] = field(default_factory=list)
     feed_entry_count: int | None = None
+    rss_error: str | None = None
 
 
 async def orchestrate_fetch(
@@ -521,14 +590,25 @@ async def orchestrate_fetch(
                 fetch_results=[],
                 skipped_urls=[],
             )
-        feed_urls = await fetch_rss_feed(all_urls[0], config, rss_limit)
-        feed_entry_count = len(feed_urls)
-        all_urls = feed_urls
+        try:
+            feed_urls = await fetch_rss_feed(all_urls[0], config, rss_limit)
+            feed_entry_count = len(feed_urls)
+            all_urls = feed_urls
+        except httpx.HTTPError as e:
+            feed_url = all_urls[0]
+            return FetchOrchestrationResult(
+                process_result=ProcessResult(stats=FetchStats(total=0)),
+                fetch_results=[],
+                skipped_urls=[],
+                rss_error=f"{feed_url}: {e}",
+            )
 
     # Filter duplicates
     skipped_urls = []
     if check_duplicates:
-        filter_result = filter_duplicate_urls(all_urls, config)
+        # For RSS feeds, skip removed URLs to avoid re-downloading trashed articles
+        # For regular fetches, allow re-fetching of previously removed URLs
+        filter_result = filter_duplicate_urls(all_urls, config, skip_removed=rss)
         skipped_urls = filter_result.skipped_urls
         all_urls = filter_result.filtered_urls
 

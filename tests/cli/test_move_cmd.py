@@ -373,6 +373,44 @@ class TestMoveSourceDirHint:
         assert "Hint" not in result.output
 
 
+class TestMoveRelativeSourceDir:
+    """Tests for --source-dir with relative path (destination rooted at vault root)."""
+
+    def test_relative_source_dir_destinations_at_vault_root(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test that files from Inbox/ move to vault_root/Category/, not Inbox/Category/."""
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "config.yaml").write_text("version: 1\npaths:\n  root: .\n")
+
+        inbox = tmp_path / "Inbox"
+        inbox.mkdir()
+        article = inbox / "20240115-Article.md"
+        article.write_text("""---
+title: Test Article
+source: https://example.com/page
+---
+
+Content here.
+""")
+
+        cat_file = tmp_path / "categorization.txt"
+        cat_file.write_text("1. Tech - 20240115-Article.md\n")
+
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            ["move", str(cat_file), "--source-dir", "Inbox", "--no-cache-update"],
+        )
+        assert result.exit_code == 0, result.output
+        assert "moved" in result.output.lower()
+
+        # File must be at vault_root/Tech/, NOT at vault_root/Inbox/Tech/
+        assert (tmp_path / "Tech" / "20240115-Article.md").exists()
+        assert not (tmp_path / "Inbox" / "Tech" / "20240115-Article.md").exists()
+        assert not article.exists()
+
+
 class TestMoveFuzzyFolderMatch:
     """Tests for fuzzy folder name matching in move command."""
 

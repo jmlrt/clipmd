@@ -158,6 +158,7 @@ def find_suspicious_categories(
     instructions: list[MoveInstruction],
     source_dir: Path,
     max_distance: int = 2,
+    dest_root: Path | None = None,
 ) -> dict[str, str]:
     """Find new category names that closely resemble existing folder names.
 
@@ -165,11 +166,13 @@ def find_suspicious_categories(
         instructions: List of move instructions.
         source_dir: Source directory to check for existing folders.
         max_distance: Maximum Levenshtein distance to consider suspicious.
+        dest_root: Root directory to check for existing folders (defaults to source_dir).
 
     Returns:
         Dict mapping suspicious new category name → closest existing folder name.
     """
-    existing_folders = {d.name for d in source_dir.iterdir() if d.is_dir()}
+    check_dir = dest_root or source_dir
+    existing_folders = {d.name for d in check_dir.iterdir() if d.is_dir()}
     suspicious: dict[str, str] = {}
 
     unique_categories = {i.category for i in instructions if not i.is_trash}
@@ -193,6 +196,7 @@ def execute_move(
     instruction: MoveInstruction,
     source_dir: Path,
     create_folders: bool = True,
+    dest_root: Path | None = None,
 ) -> MoveResult:
     """Execute a single move instruction.
 
@@ -200,6 +204,7 @@ def execute_move(
         instruction: The move instruction to execute.
         source_dir: Source directory containing the files.
         create_folders: Whether to create folders if they don't exist.
+        dest_root: Root directory for destination (defaults to source_dir).
 
     Returns:
         MoveResult with the outcome.
@@ -227,7 +232,7 @@ def execute_move(
         return result
 
     # Move to category folder
-    dest_folder = source_dir / instruction.category
+    dest_folder = (dest_root or source_dir) / instruction.category
 
     # Create folder if needed
     if not dest_folder.exists():
@@ -266,6 +271,7 @@ def execute_moves(
     dry_run: bool = False,
     create_folders: bool = True,
     update_cache: bool = True,
+    dest_root: Path | None = None,
 ) -> MoveStats:
     """Execute all move instructions.
 
@@ -276,6 +282,7 @@ def execute_moves(
         dry_run: If True, don't actually move files.
         create_folders: Whether to create folders if they don't exist.
         update_cache: Whether to update the cache after moving.
+        dest_root: Root directory for destination (defaults to source_dir).
 
     Returns:
         MoveStats with summary of operations.
@@ -296,7 +303,7 @@ def execute_moves(
             if instruction.is_trash:
                 stats.trashed += 1
             else:
-                dest_folder = source_dir / instruction.category
+                dest_folder = (dest_root or source_dir) / instruction.category
                 if not dest_folder.exists() and instruction.category not in created_folders:
                     if create_folders:
                         created_folders.add(instruction.category)
@@ -322,7 +329,7 @@ def execute_moves(
             continue
 
         # Execute the move
-        result = execute_move(instruction, source_dir, create_folders)
+        result = execute_move(instruction, source_dir, create_folders, dest_root=dest_root)
 
         if result.success:
             if result.trashed:
@@ -337,7 +344,7 @@ def execute_moves(
 
     # Update cache if requested
     if update_cache and not dry_run:
-        _update_cache_after_moves(instructions, source_dir, config)
+        _update_cache_after_moves(instructions, source_dir, config, dest_root=dest_root)
 
     return stats
 
@@ -346,6 +353,7 @@ def _update_cache_after_moves(
     instructions: list[MoveInstruction],
     source_dir: Path,
     config: Config,
+    dest_root: Path | None = None,
 ) -> None:
     """Update cache after moves.
 
@@ -353,10 +361,11 @@ def _update_cache_after_moves(
         instructions: List of move instructions that were executed.
         source_dir: Source directory.
         config: Application configuration.
+        dest_root: Root directory for destination (defaults to source_dir).
     """
     cache_path = config.paths.cache
     if not cache_path.is_absolute():
-        cache_path = source_dir / cache_path
+        cache_path = config.paths.root / cache_path
     cache = load_cache(cache_path)
 
     for instruction in instructions:
@@ -373,7 +382,7 @@ def _update_cache_after_moves(
                 cache.mark_removed(url)
         else:
             # Update location in cache
-            dest_file = source_dir / instruction.category / instruction.filename
+            dest_file = (dest_root or source_dir) / instruction.category / instruction.filename
             if not dest_file.exists():
                 continue  # Move failed
 

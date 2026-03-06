@@ -64,9 +64,9 @@ def stats_command(
         folder_stats.folders = [f for f in folder_stats.folders if f.warning]
 
     if output_format == "json":
-        console.print(stats.format_stats_json(folder_stats))
+        click.echo(stats.format_stats_json(folder_stats))
     elif output_format == "yaml":
-        console.print(stats.format_stats_yaml(folder_stats))
+        click.echo(stats.format_stats_yaml(folder_stats))
     else:
         # Table format
         console.print(

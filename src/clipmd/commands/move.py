@@ -35,7 +35,7 @@ console = Console()
 )
 @click.option(
     "--source-dir",
-    type=click.Path(exists=True, file_okay=False, path_type=Path),
+    type=click.Path(file_okay=False, path_type=Path),
     help="Source directory (default: config root)",
 )
 @click.pass_context
@@ -65,8 +65,46 @@ def move_command(
 
     # Track whether --source-dir was explicitly passed
     source_dir_explicit = source_dir is not None
+    source_dir_is_relative = source_dir is not None and not source_dir.is_absolute()
+
     if source_dir is None:
         source_dir = config.paths.root
+    elif source_dir_is_relative:
+        # Normalize relative paths against vault root
+        source_dir = config.paths.root / source_dir
+
+    assert source_dir is not None
+
+    # Validate that source directory exists and is a directory after normalization
+    if not source_dir.exists():
+        raise click.BadParameter(
+            f"Source directory not found: {source_dir}",
+            param_hint="--source-dir",
+        )
+    if not source_dir.is_dir():
+        raise click.BadParameter(
+            f"Source path is not a directory: {source_dir}",
+            param_hint="--source-dir",
+        )
+
+    # Resolve both paths after existence is confirmed so that any `..` components
+    # are eliminated before the containment check (lexical relative_to() can be
+    # bypassed with paths like `root/../outside`).
+    source_dir = source_dir.resolve()
+    vault_root = config.paths.root.resolve()
+
+    # Determine destination root for moves
+    # Use vault root as destination when source_dir is a subdirectory of it
+    dest_root = None
+    if source_dir_explicit and source_dir != vault_root:
+        # Check if source_dir is within vault root (subdirectory)
+        try:
+            source_dir.relative_to(vault_root)
+            # If we get here, source_dir is within vault root
+            dest_root = vault_root
+        except ValueError:
+            # source_dir is not within vault root (e.g., absolute temp path in tests)
+            pass
 
     # Display dry run message if applicable
     if dry_run:
@@ -81,7 +119,7 @@ def move_command(
         return
 
     # Pre-flight fuzzy folder check (skip in dry-run — just warn)
-    suspicious = mover.find_suspicious_categories(instructions, source_dir)
+    suspicious = mover.find_suspicious_categories(instructions, source_dir, dest_root=dest_root)
     if suspicious:
         for bad_category, similar_existing in suspicious.items():
             if dry_run:
@@ -116,6 +154,7 @@ def move_command(
         dry_run=dry_run,
         create_folders=create_folders,
         update_cache=not no_cache_update,
+        dest_root=dest_root,
     )
 
     # Display results
