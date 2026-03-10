@@ -98,3 +98,4 @@ NOTES.md
 
 # Test artifacts
 tests/fixtures/temp/
+.claude/settings.local.json
