@@ -198,9 +198,10 @@ def sanitize_title_for_filename(title: str) -> str:
 
     result = cleaned or "article"
 
-    # Enforce filesystem-safe byte limit (255 total, minus date prefix and extension)
-    # Reserve 9 bytes for date prefix (YYYYMMDD-) and 3 bytes for extension
-    max_bytes = 242
+    # Enforce filesystem-safe byte limit (255 total, accounting for all components)
+    # Reserve: 9 bytes for date prefix (YYYYMMDD-) + 3 bytes for .md extension
+    #          + 5 bytes for counter suffix (-9999) in get_unique_filepath()
+    max_bytes = 238  # 255 - 9 - 3 - 5 = 238
     result_bytes = result.encode("utf-8")
 
     if len(result_bytes) > max_bytes:
