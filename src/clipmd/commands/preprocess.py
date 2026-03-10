@@ -87,16 +87,18 @@ def preprocess_command(
             to_trash.update(losers)  # Use set to deduplicate
 
         if to_trash:
-            # Sort for deterministic display
-            to_trash_list = sorted(to_trash)
-            # --auto-remove-dupes implies automatic removal (no confirmation)
-            should_remove = True
-            if not dry_run:
-                console.print(f"Removing {len(to_trash_list)} duplicate files (oldest kept)")
-                for p in to_trash_list:
-                    console.print(f"  - {p.name}")
+            # Filter to only files under the processed path (safety: don't trash files outside scope)
+            to_trash_list = [p for p in to_trash if p.resolve().is_relative_to(path.resolve())]
 
-            if should_remove:
+            if to_trash_list:
+                # Sort for deterministic display
+                to_trash_list = sorted(to_trash_list)
+                # --auto-remove-dupes implies automatic removal (no confirmation)
+                if not dry_run:
+                    console.print(f"Removing {len(to_trash_list)} duplicate files (oldest kept)")
+                    for p in to_trash_list:
+                        console.print(f"  - {p.name}")
+
                 if not dry_run:
                     trash_stats = trash.trash_files(to_trash_list, config, dry_run=False)
                     console.print(f"Removed {trash_stats.trashed} duplicate files")
