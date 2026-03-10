@@ -41,6 +41,55 @@ uv run clipmd init             # Initialize new vault
 uv run clipmd --config ./test-config.yaml extract  # Use specific config
 ```
 
+## Trust Escalation & Autonomous Workflows
+
+This project uses a **trust escalation model** to enable agents to work more autonomously:
+
+### Permission Levels
+
+**Level 1: Basic** (default)
+- Safe operations: read files, write code, run tests
+- Can create commits and push to feature branches
+- Requires: All tests pass before pushing (`make check`)
+- No approval needed for: code changes, testing, commits
+
+**Level 2: Trusted** (after first successful PR merge)
+- Can push directly to main (no PR required for hotfixes)
+- Can use more destructive operations (with validation)
+- Risk-assessment tools enabled
+- Unlock: Merge a PR successfully
+
+**Level 3: Autonomous** (after 3+ successful sessions)
+- Minimal restrictions
+- Can work without constant validation
+- Full worktree isolation available
+- Unlock: Multiple successful merges + no regressions
+
+### Safe Autonomous Workflow Pattern
+
+For risky changes (refactoring, major rewrites), use **worktree isolation**:
+
+```bash
+# Start in isolated worktree
+claude -p "start a worktree for isolated work"
+
+# Make changes, run tests locally
+make check
+
+# Exit worktree when done
+claude -p "exit worktree, keep changes"
+```
+
+### Permission Structure
+
+Permissions are organized by profile in `.claude/settings.json`:
+- **development** - Git, build, code changes
+- **code-quality** - Testing and linting
+- **file-operations** - Safe file I/O
+- **risky-operations** - Requires test validation
+
+No approval requests needed for operations in the active profile.
+
 ## Implementation Approach
 
 - Work on feature branch
