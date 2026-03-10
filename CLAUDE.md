@@ -41,54 +41,47 @@ uv run clipmd init             # Initialize new vault
 uv run clipmd --config ./test-config.yaml extract  # Use specific config
 ```
 
-## Trust Escalation & Autonomous Workflows
+## Workflow Safety
 
-This project uses a **trust escalation model** to enable agents to work more autonomously:
+### Pre-Push Checklist
 
-### Permission Levels
-
-**Level 1: Basic** (default)
-- Safe operations: read files, write code, run tests
-- Can create commits and push to feature branches
-- Requires: All tests pass before pushing (`make check`)
-- No approval needed for: code changes, testing, commits
-
-**Level 2: Trusted** (after first successful PR merge)
-- Can push directly to main (no PR required for hotfixes)
-- Can use more destructive operations (with validation)
-- Risk-assessment tools enabled
-- Unlock: Merge a PR successfully
-
-**Level 3: Autonomous** (after 3+ successful sessions)
-- Minimal restrictions
-- Can work without constant validation
-- Full worktree isolation available
-- Unlock: Multiple successful merges + no regressions
-
-### Safe Autonomous Workflow Pattern
-
-For risky changes (refactoring, major rewrites), use **worktree isolation**:
-
+Before pushing, always run:
 ```bash
-# Start in isolated worktree
-claude -p "start a worktree for isolated work"
-
-# Make changes, run tests locally
-make check
-
-# Exit worktree when done
-claude -p "exit worktree, keep changes"
+make check  # Enforces: lint, typecheck, tests (89% coverage minimum)
 ```
 
-### Permission Structure
+This must pass locally before any commit or push.
 
-Permissions are organized by profile in `.claude/settings.json`:
-- **development** - Git, build, code changes
-- **code-quality** - Testing and linting
-- **file-operations** - Safe file I/O
-- **risky-operations** - Requires test validation
+### Worktree Isolation for High-Risk Work
 
-No approval requests needed for operations in the active profile.
+For complex refactoring or experimental changes, use worktree isolation:
+
+```bash
+# Start isolated work
+claude "start a worktree for this feature"
+
+# Work freely in isolation
+# Run make check locally to validate
+# Exit when done
+claude "exit worktree, keep changes"
+```
+
+This prevents accidents by isolating work from main branch.
+
+### Permission System
+
+Dangerous operations are **explicitly blocked** in `.claude/settings.json`:
+- ❌ `git push --force` (prevent accidental overwrites)
+- ❌ `git reset --hard` (prevent losing work)
+- ❌ `rm -rf /`, `rm -rf ~`, `rm -rf .` (prevent system damage)
+
+Safe operations are **pre-allowed**:
+- ✅ All git operations (except force variants)
+- ✅ All make targets (lint, test, check)
+- ✅ All uv package operations
+- ✅ File operations (ls, mkdir, rm for caches only)
+
+No approval requests needed for allowed operations.
 
 ## Implementation Approach
 
