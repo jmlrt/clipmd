@@ -10,8 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `stats` command now accepts an optional `PATH` argument to scope statistics to a subdirectory (e.g., `clipmd stats Clippings/`)
-- `preprocess --auto-remove-dupes` flag to automatically trash duplicate files detected during preprocessing; combine with `--yes` to skip confirmation
-- `duplicates --auto-resolve` flag with `--strategy oldest-wins` to automatically trash duplicate files; combine with `--yes` and `--dry-run`
+- `preprocess --auto-remove-dupes` flag to automatically trash duplicate files detected during preprocessing (no confirmation prompt)
 - `fetch --file --clear-after` flag to reset the URL file to empty after all URLs are successfully fetched
 - `move --skip-missing` flag to skip missing source files with a warning instead of halting on error
 

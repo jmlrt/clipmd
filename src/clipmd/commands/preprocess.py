@@ -28,9 +28,8 @@ console = Console()
 @click.option(
     "--auto-remove-dupes",
     is_flag=True,
-    help="Automatically remove duplicate files detected during preprocessing",
+    help="Automatically remove duplicate files detected during preprocessing (skips confirmation)",
 )
-@click.option("--yes", "-y", is_flag=True, help="Skip confirmation prompt")
 @click.pass_context
 def preprocess_command(
     ctx: click.Context,
@@ -42,7 +41,6 @@ def preprocess_command(
     no_frontmatter_fix: bool,
     no_dedupe: bool,
     auto_remove_dupes: bool,
-    yes: bool,
 ) -> None:
     """Preprocess markdown articles.
 
@@ -91,14 +89,12 @@ def preprocess_command(
         if to_trash:
             # Sort for deterministic display
             to_trash_list = sorted(to_trash)
-            should_remove = yes
-            if not yes:
-                console.print(
-                    f"\n[yellow]Found {len(to_trash_list)} duplicate files to remove:[/yellow]"
-                )
+            # --auto-remove-dupes implies automatic removal (no confirmation)
+            should_remove = True
+            if not dry_run:
+                console.print(f"Removing {len(to_trash_list)} duplicate files (oldest kept)")
                 for p in to_trash_list:
                     console.print(f"  - {p.name}")
-                should_remove = click.confirm("Remove duplicates?")
 
             if should_remove:
                 if not dry_run:

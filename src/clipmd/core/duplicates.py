@@ -36,16 +36,6 @@ class DuplicateResult:
     by_filename: list[DuplicateGroup] = field(default_factory=list)
 
 
-@dataclass
-class ResolveStats:
-    """Statistics from resolving duplicates."""
-
-    total_groups: int = 0
-    kept: list[tuple[str, Path]] = field(default_factory=list)  # (key, kept_path)
-    trashed: list[Path] = field(default_factory=list)
-    errors: list[tuple[Path, str]] = field(default_factory=list)
-
-
 def _extract_date_from_filename(path: Path) -> date | None:
     """Extract date from filename using date prefix pattern.
 
@@ -127,46 +117,6 @@ def pick_winner(paths: list[Path], config: Config | None = None) -> Path:
         return (0 if d else 1, d or date.max, len(p.stem), str(p))
 
     return min(paths, key=sort_key)
-
-
-def resolve_duplicates(
-    groups: list[DuplicateGroup],
-    config: Config,
-    strategy: str = "oldest-wins",  # noqa: ARG001
-    dry_run: bool = False,
-) -> ResolveStats:
-    """Resolve duplicate groups by trashing losers.
-
-    Args:
-        groups: List of duplicate groups to resolve.
-        config: Application configuration.
-        strategy: Resolution strategy (currently only "oldest-wins").
-        dry_run: If True, don't actually trash files.
-
-    Returns:
-        ResolveStats with summary of operations.
-    """
-    from clipmd.core import trash
-
-    stats = ResolveStats(total_groups=len(groups))
-    to_trash_set: set[Path] = set()
-
-    for group in groups:
-        winner = pick_winner(group.files, config)
-        losers = [f for f in group.files if f != winner]
-        stats.kept.append((group.key, winner))
-        to_trash_set.update(losers)
-
-    # Trash the loser files (deduplicated)
-    if to_trash_set:
-        to_trash = sorted(to_trash_set)  # Deterministic ordering
-        trash_stats = trash.trash_files(to_trash, config, dry_run=dry_run)
-        # Track successfully trashed files by excluding error paths
-        error_paths = {p for p, _ in trash_stats.errors}
-        stats.trashed = [p for p in to_trash if p not in error_paths]
-        stats.errors = list(trash_stats.errors)
-
-    return stats
 
 
 def find_duplicates_by_url(root_dir: Path, config: Config) -> list[DuplicateGroup]:

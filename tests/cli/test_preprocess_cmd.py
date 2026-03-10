@@ -363,7 +363,7 @@ Content here.
         )
 
         runner = CliRunner()
-        result = runner.invoke(main, ["preprocess", "--auto-remove-dupes", "--yes", str(tmp_path)])
+        result = runner.invoke(main, ["preprocess", "--auto-remove-dupes", str(tmp_path)])
         assert result.exit_code == 0
         # One file should be removed
         remaining = list(tmp_path.glob("*.md"))
@@ -389,7 +389,7 @@ Content here.
         runner = CliRunner()
         result = runner.invoke(
             main,
-            ["preprocess", "--auto-remove-dupes", "--dry-run", "--yes", str(tmp_path)],
+            ["preprocess", "--auto-remove-dupes", "--dry-run", str(tmp_path)],
         )
         assert result.exit_code == 0
         # Both files should still exist

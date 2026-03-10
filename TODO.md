@@ -14,8 +14,8 @@ fully autonomous operation.
 
 | # | Item | Type | Priority | Unattended impact | Status |
 |---|------|------|----------|-------------------|--------|
-| ✅ 1 | `preprocess --auto-remove-dupes --yes` | Feature | **P0** | Blocks unattended — hangs indefinitely on interactive prompts | DONE |
-| ✅ 2 | `duplicates --auto-resolve --strategy oldest-wins` | Feature | High | Eliminates 3–5 manual tool calls per duplicate group | DONE |
+| ✅ 1 | `preprocess --auto-remove-dupes` | Feature | **P0** | Blocks unattended — hangs indefinitely on interactive prompts | DONE |
+| 🔄 2 | `duplicates --auto-resolve` | Feature | High | Eliminates 3–5 manual tool calls per duplicate group | **DEFERRED to Phase 2** (duplicate handling via preprocess is sufficient) |
 | ✅ 3 | `extract`: fix filename truncation | Bug Fix | High | Eliminates secondary Glob verification before every `move` | DONE |
 | ✅ 4 | `fetch --file --clear-after` | Feature | High | Atomic inbox clear — prevents double-fetch on interrupted run | DONE |
 | ✅ 5 | `move --skip-missing` | Feature | Medium | Removes manual pre-validation bash loop | DONE |
