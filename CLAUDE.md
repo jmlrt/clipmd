@@ -41,48 +41,6 @@ uv run clipmd init             # Initialize new vault
 uv run clipmd --config ./test-config.yaml extract  # Use specific config
 ```
 
-## Workflow Safety
-
-### Pre-Push Checklist
-
-Before pushing, always run:
-```bash
-make check  # Enforces: lint, typecheck, tests (89% coverage minimum)
-```
-
-This must pass locally before any commit or push.
-
-### Worktree Isolation for High-Risk Work
-
-For complex refactoring or experimental changes, use worktree isolation:
-
-```bash
-# Start isolated work
-claude "start a worktree for this feature"
-
-# Work freely in isolation
-# Run make check locally to validate
-# Exit when done
-claude "exit worktree, keep changes"
-```
-
-This prevents accidents by isolating work from main branch.
-
-### Permission System
-
-Dangerous operations are **explicitly blocked** in `.claude/settings.json`:
-- ❌ `git push --force` (prevent accidental overwrites)
-- ❌ `git reset --hard` (prevent losing work)
-- ❌ `rm -rf /`, `rm -rf ~`, `rm -rf .` (prevent system damage)
-
-Safe operations are **pre-allowed**:
-- ✅ All git operations (except force variants)
-- ✅ All make targets (lint, test, check)
-- ✅ All uv package operations
-- ✅ File operations (ls, mkdir, rm for caches only)
-
-No approval requests needed for allowed operations.
-
 ## Implementation Approach
 
 - Work on feature branch
