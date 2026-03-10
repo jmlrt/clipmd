@@ -136,22 +136,20 @@ def resolve_duplicates(
     from clipmd.core import trash
 
     stats = ResolveStats(total_groups=len(groups))
-    to_trash: list[Path] = []
+    to_trash_set: set[Path] = set()
 
     for group in groups:
         winner = pick_winner(group.files)
         losers = [f for f in group.files if f != winner]
         stats.kept.append((group.key, winner))
-        to_trash.extend(losers)
+        to_trash_set.update(losers)
 
-    # Trash the loser files
-    if to_trash:
+    # Trash the loser files (deduplicated)
+    if to_trash_set:
+        to_trash = sorted(to_trash_set)  # Deterministic ordering
         trash_stats = trash.trash_files(to_trash, config, dry_run=dry_run)
-        stats.trashed = (
-            [p for p, _ in trash_stats.errors]
-            if trash_stats.errors
-            else to_trash[: trash_stats.trashed]
-        )
+        # Track successfully trashed files (not error paths)
+        stats.trashed = to_trash[: trash_stats.trashed]
         stats.errors = list(trash_stats.errors)
 
     return stats

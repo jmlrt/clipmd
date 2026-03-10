@@ -51,6 +51,7 @@ class MoveStats:
     folders_created: list[str] = field(default_factory=list)
     errors: list[tuple[str, str]] = field(default_factory=list)
     skipped: int = 0
+    skipped_files: list[str] = field(default_factory=list)
 
 
 def parse_categorization_file(content: str) -> list[MoveInstruction]:
@@ -301,6 +302,7 @@ def execute_moves(
             if not source.exists():
                 if skip_missing:
                     stats.skipped += 1
+                    stats.skipped_files.append(instruction.filename)
                 else:
                     stats.errors.append((instruction.filename, "File not found"))
                 continue
@@ -347,6 +349,7 @@ def execute_moves(
         else:
             if skip_missing and result.error == "File not found":
                 stats.skipped += 1
+                stats.skipped_files.append(instruction.filename)
             else:
                 stats.errors.append((instruction.filename, result.error or "Unknown error"))
 
@@ -439,8 +442,12 @@ def format_move_results(
             lines.append("Moved:")
 
         error_filenames = {e[0] for e in stats.errors}
+        skipped_filenames = set(stats.skipped_files)
         for instruction in instructions:
-            if instruction.filename not in error_filenames:
+            if (
+                instruction.filename not in error_filenames
+                and instruction.filename not in skipped_filenames
+            ):
                 if instruction.is_trash:
                     lines.append(f"  ✓ {instruction.filename} → Trash")
                 else:

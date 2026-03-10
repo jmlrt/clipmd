@@ -110,10 +110,24 @@ def duplicates_command(
 
     # Handle auto-resolve if requested
     if auto_resolve:
+        # Restrict --auto-resolve to a single detection method to avoid overlapping groups
+        methods_enabled = sum([bool(result.by_url), bool(result.by_hash), bool(result.by_filename)])
+        if methods_enabled > 1:
+            console.print(
+                "[red]Error:[/red] --auto-resolve can only be used with one detection "
+                "method (--by-url, --by-hash, or --by-filename), not multiple"
+            )
+            raise SystemExit(1)
+
         total_groups = len(result.by_url) + len(result.by_hash) + len(result.by_filename)
         if total_groups > 0:
-            # Combine all groups
-            combined_groups = result.by_url + result.by_hash + result.by_filename
+            # Use the appropriate groups based on the single enabled method
+            if result.by_url:
+                combined_groups = result.by_url
+            elif result.by_hash:
+                combined_groups = result.by_hash
+            else:
+                combined_groups = result.by_filename
 
             # Show confirmation unless --yes was passed
             if not yes:

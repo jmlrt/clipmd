@@ -188,8 +188,12 @@ def fetch_command(
         if output_format == "text":
             console.print("Cache updated.")
 
-    # Clear URL file if requested
+    # Clear URL file if requested (only if fetch was fully successful)
     if clear_after and url_file and not dry_run:
-        url_file.write_text("", encoding="utf-8")
-        if output_format == "text":
-            console.print(f"Cleared: {url_file}")
+        # Only clear if no errors occurred during fetch
+        if not stats.errors:
+            url_file.write_text("", encoding="utf-8")
+            if output_format == "text":
+                console.print(f"Cleared: {url_file}")
+        elif output_format == "text":
+            console.print("[yellow]Skipped clearing URL file due to fetch errors[/yellow]")

@@ -82,20 +82,21 @@ def preprocess_command(
             to_trash.extend(losers)
 
         if to_trash:
+            should_remove = yes
             if not yes:
                 console.print(
                     f"\n[yellow]Found {len(to_trash)} duplicate files to remove:[/yellow]"
                 )
                 for p in to_trash:
                     console.print(f"  - {p.name}")
-                if not click.confirm("Remove duplicates?"):
-                    return
+                should_remove = click.confirm("Remove duplicates?")
 
-            if not dry_run:
-                trash_stats = trash.trash_files(to_trash, config, dry_run=False)
-                console.print(f"Removed {trash_stats.trashed} duplicate files")
-            else:
-                console.print(f"[dry-run] Would remove {len(to_trash)} duplicate files")
+            if should_remove:
+                if not dry_run:
+                    trash_stats = trash.trash_files(to_trash, config, dry_run=False)
+                    console.print(f"Removed {trash_stats.trashed} duplicate files")
+                else:
+                    console.print(f"[dry-run] Would remove {len(to_trash)} duplicate files")
 
     # Display summary
     summary_lines = preprocessor.format_preprocess_summary(
