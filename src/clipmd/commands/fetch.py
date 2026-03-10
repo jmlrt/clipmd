@@ -183,21 +183,19 @@ def fetch_command(
 
     # Update cache
     stats = orch_result.process_result.stats
+    cache_updated = False
     if not dry_run and not no_cache_update and stats.saved > 0:
         cache.update_cache_after_fetch(orch_result.fetch_results, config)
+        cache_updated = True
         if output_format == "text":
             console.print("Cache updated.")
 
-    # Clear URL file if requested (only if fetch was fully successful)
-    if clear_after and url_file and not dry_run:
-        # Only clear if no errors occurred during fetch
-        if not stats.errors:
-            try:
-                url_file.write_text("", encoding="utf-8")
-                if output_format == "text":
-                    console.print(f"Cleared: {url_file}")
-            except OSError as e:
-                if output_format == "text":
-                    console.print(f"[red]Failed to clear URL file:[/red] {e}")
-        elif output_format == "text":
-            console.print("[yellow]Skipped clearing URL file due to fetch errors[/yellow]")
+    # Clear URL file only if cache was successfully updated (atomic operation)
+    if clear_after and url_file and not dry_run and cache_updated and not stats.errors:
+        try:
+            url_file.write_text("", encoding="utf-8")
+            if output_format == "text":
+                console.print(f"Cleared: {url_file}")
+        except OSError as e:
+            console.print(f"[red]Failed to clear URL file:[/red] {e}")
+            raise SystemExit(1) from e
