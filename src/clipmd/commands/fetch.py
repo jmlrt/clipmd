@@ -192,8 +192,12 @@ def fetch_command(
     if clear_after and url_file and not dry_run:
         # Only clear if no errors occurred during fetch
         if not stats.errors:
-            url_file.write_text("", encoding="utf-8")
-            if output_format == "text":
-                console.print(f"Cleared: {url_file}")
+            try:
+                url_file.write_text("", encoding="utf-8")
+                if output_format == "text":
+                    console.print(f"Cleared: {url_file}")
+            except OSError as e:
+                if output_format == "text":
+                    console.print(f"[red]Failed to clear URL file:[/red] {e}")
         elif output_format == "text":
             console.print("[yellow]Skipped clearing URL file due to fetch errors[/yellow]")

@@ -136,7 +136,16 @@ def duplicates_command(
                 )
                 for group in combined_groups:
                     for file_path in group.files:
-                        console.print(f"  - {file_path.relative_to(root_dir)}")
+                        # Safe relative_to handling (works with relative root_dir like ".")
+                        try:
+                            rel_path = (
+                                file_path.relative_to(root_dir)
+                                if file_path.is_absolute() and root_dir.is_absolute()
+                                else file_path
+                            )
+                        except ValueError:
+                            rel_path = file_path
+                        console.print(f"  - {rel_path}")
                 if not click.confirm("\nResolve duplicates?"):
                     return
 

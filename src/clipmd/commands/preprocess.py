@@ -104,6 +104,11 @@ def preprocess_command(
                 if not dry_run:
                     trash_stats = trash.trash_files(to_trash_list, config, dry_run=False)
                     console.print(f"Removed {trash_stats.trashed} duplicate files")
+                    # Surface any trash errors
+                    if trash_stats.errors:
+                        console.print("\n[red]Errors while removing duplicates:[/red]")
+                        for path, error in trash_stats.errors:
+                            console.print(f"  ✗ {path.name}: {error}")
                 else:
                     console.print(f"[dry-run] Would remove {len(to_trash_list)} duplicate files")
 
