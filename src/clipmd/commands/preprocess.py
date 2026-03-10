@@ -25,6 +25,12 @@ console = Console()
 @click.option("--no-date-prefix", is_flag=True, help="Skip date prefix addition")
 @click.option("--no-frontmatter-fix", is_flag=True, help="Skip frontmatter fixing")
 @click.option("--no-dedupe", is_flag=True, help="Skip duplicate detection")
+@click.option(
+    "--auto-remove-dupes",
+    is_flag=True,
+    help="Automatically remove duplicate files detected during preprocessing",
+)
+@click.option("--yes", "-y", is_flag=True, help="Skip confirmation prompt")
 @click.pass_context
 def preprocess_command(
     ctx: click.Context,
@@ -35,6 +41,8 @@ def preprocess_command(
     no_date_prefix: bool,
     no_frontmatter_fix: bool,
     no_dedupe: bool,
+    auto_remove_dupes: bool,
+    yes: bool,
 ) -> None:
     """Preprocess markdown articles.
 
@@ -60,6 +68,34 @@ def preprocess_command(
         no_frontmatter_fix=no_frontmatter_fix,
         no_dedupe=no_dedupe,
     )
+
+    # Handle auto-remove-dupes if requested
+    if auto_remove_dupes and stats.duplicate_groups:
+        from clipmd.core import trash
+        from clipmd.core.duplicates import pick_winner
+
+        to_trash: list[Path] = []
+        for group in stats.duplicate_groups:
+            paths = [path for _, path in group]
+            winner = pick_winner(paths)
+            losers = [p for p in paths if p != winner]
+            to_trash.extend(losers)
+
+        if to_trash:
+            if not yes:
+                console.print(
+                    f"\n[yellow]Found {len(to_trash)} duplicate files to remove:[/yellow]"
+                )
+                for p in to_trash:
+                    console.print(f"  - {p.name}")
+                if not click.confirm("Remove duplicates?"):
+                    return
+
+            if not dry_run:
+                trash_stats = trash.trash_files(to_trash, config, dry_run=False)
+                console.print(f"Removed {trash_stats.trashed} duplicate files")
+            else:
+                console.print(f"[dry-run] Would remove {len(to_trash)} duplicate files")
 
     # Display summary
     summary_lines = preprocessor.format_preprocess_summary(

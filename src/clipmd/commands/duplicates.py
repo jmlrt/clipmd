@@ -42,6 +42,28 @@ console = Console()
     default="markdown",
     help="Output format (default: markdown)",
 )
+@click.option(
+    "--auto-resolve",
+    is_flag=True,
+    help="Automatically resolve duplicates by trashing losers",
+)
+@click.option(
+    "--strategy",
+    type=click.Choice(["oldest-wins"]),
+    default="oldest-wins",
+    help="Resolution strategy (default: oldest-wins)",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Show what would be done without trashing",
+)
+@click.option(
+    "--yes",
+    "-y",
+    is_flag=True,
+    help="Skip confirmation prompt",
+)
 @click.pass_context
 def duplicates_command(
     ctx: click.Context,
@@ -50,6 +72,10 @@ def duplicates_command(
     by_filename: bool,
     output: Path | None,
     output_format: str,
+    auto_resolve: bool,
+    strategy: str,
+    dry_run: bool,
+    yes: bool,
 ) -> None:
     """Find duplicate articles.
 
@@ -81,6 +107,55 @@ def duplicates_command(
     if by_filename:
         console.print("[dim]Scanning for filename duplicates...[/dim]")
         result.by_filename = duplicates.find_duplicates_by_filename(root_dir, config)
+
+    # Handle auto-resolve if requested
+    if auto_resolve:
+        total_groups = len(result.by_url) + len(result.by_hash) + len(result.by_filename)
+        if total_groups > 0:
+            # Combine all groups
+            combined_groups = result.by_url + result.by_hash + result.by_filename
+
+            # Show confirmation unless --yes was passed
+            if not yes:
+                console.print(
+                    f"\n[yellow]Found {total_groups} duplicate groups to resolve:[/yellow]"
+                )
+                for group in combined_groups:
+                    for file_path in group.files:
+                        console.print(f"  - {file_path.relative_to(root_dir)}")
+                if not click.confirm("\nResolve duplicates?"):
+                    return
+
+            # Resolve the duplicates
+            resolve_stats = duplicates.resolve_duplicates(
+                combined_groups,
+                config,
+                strategy=strategy,
+                dry_run=dry_run,
+            )
+
+            # Print resolution summary
+            console.print("")
+            for _key, kept_path in resolve_stats.kept:
+                rel_path = (
+                    kept_path.relative_to(root_dir)
+                    if kept_path.is_relative_to(root_dir)
+                    else kept_path
+                )
+                console.print(f"  Kept: {rel_path}")
+
+            if resolve_stats.trashed:
+                console.print(f"\nTrashed {len(resolve_stats.trashed)} files")
+
+            if resolve_stats.errors:
+                console.print(f"\n[red]Errors ({len(resolve_stats.errors)}):[/red]")
+                for path, error in resolve_stats.errors:
+                    console.print(f"  ✗ {path}: {error}")
+
+            if dry_run:
+                console.print("\n[yellow](dry-run) No files were actually trashed[/yellow]")
+
+            return
 
     # Format output
     if output_format == "json":

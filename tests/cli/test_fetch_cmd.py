@@ -237,7 +237,9 @@ class TestFetchHelpers:
         assert sanitize_title_for_filename("Hello World") == "Hello-World"
         assert sanitize_title_for_filename("Test: Article!") == "Test-Article"
         assert sanitize_title_for_filename("  Spaced  ") == "Spaced"
-        assert sanitize_title_for_filename("A" * 200)[:100]  # Truncated
+        # Long titles should not be truncated
+        long_title = "A" * 200
+        assert len(sanitize_title_for_filename(long_title)) == 200
 
     def test_generate_filename(self) -> None:
         """Test filename generation."""

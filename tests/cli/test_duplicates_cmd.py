@@ -183,3 +183,58 @@ class TestDuplicatesCommand:
         assert result.exit_code == 0
         # Should not find duplicates because hidden file is excluded
         assert "No duplicates found" in result.output
+
+    def test_auto_resolve_oldest_wins_dry_run(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test --auto-resolve with --dry-run keeps files intact."""
+        monkeypatch.chdir(tmp_path)
+
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text("version: 1\npaths:\n  root: .\n")
+
+        # Create two files with same URL (older and newer date prefix)
+        older = "20240101-article.md"
+        newer = "20240115-article.md"
+        (tmp_path / older).write_text(
+            "---\ntitle: Article\nurl: https://example.com/\n---\nContent."
+        )
+        (tmp_path / newer).write_text(
+            "---\ntitle: Article\nurl: https://example.com/\n---\nContent."
+        )
+
+        runner = CliRunner()
+        result = runner.invoke(main, ["duplicates", "--auto-resolve", "--dry-run", "--yes"])
+        assert result.exit_code == 0
+        # Both files should still exist
+        assert (tmp_path / older).exists()
+        assert (tmp_path / newer).exists()
+        assert "(dry-run)" in result.output
+
+    def test_auto_resolve_oldest_wins(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test --auto-resolve keeps oldest file by date."""
+        monkeypatch.chdir(tmp_path)
+
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text("version: 1\npaths:\n  root: .\n")
+
+        # Create two files with same URL (older and newer date prefix)
+        older = "20240101-article.md"
+        newer = "20240115-article.md"
+        (tmp_path / older).write_text(
+            "---\ntitle: Article\nurl: https://example.com/\n---\nContent."
+        )
+        (tmp_path / newer).write_text(
+            "---\ntitle: Article\nurl: https://example.com/\n---\nContent."
+        )
+
+        runner = CliRunner()
+        result = runner.invoke(main, ["duplicates", "--auto-resolve", "--yes"])
+        assert result.exit_code == 0
+        # Older file should exist, newer should be trashed
+        assert (tmp_path / older).exists()
+        assert not (tmp_path / newer).exists()
+        assert "Kept:" in result.output
+        assert "Trashed" in result.output

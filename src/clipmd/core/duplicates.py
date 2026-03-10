@@ -5,10 +5,11 @@ from __future__ import annotations
 import json
 from collections import defaultdict
 from dataclasses import dataclass, field
+from datetime import date
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from clipmd.core.dates import has_date_prefix
+from clipmd.core.dates import has_date_prefix, parse_date_string
 from clipmd.core.discovery import discover_markdown_files
 from clipmd.core.frontmatter import get_source_url, parse_frontmatter
 from clipmd.core.hasher import hash_content
@@ -33,6 +34,127 @@ class DuplicateResult:
     by_url: list[DuplicateGroup] = field(default_factory=list)
     by_hash: list[DuplicateGroup] = field(default_factory=list)
     by_filename: list[DuplicateGroup] = field(default_factory=list)
+
+
+@dataclass
+class ResolveStats:
+    """Statistics from resolving duplicates."""
+
+    total_groups: int = 0
+    kept: list[tuple[str, Path]] = field(default_factory=list)  # (key, kept_path)
+    trashed: list[Path] = field(default_factory=list)
+    errors: list[tuple[Path, str]] = field(default_factory=list)
+
+
+def _extract_date_from_filename(path: Path) -> date | None:
+    """Extract date from filename using date prefix pattern.
+
+    Args:
+        path: Path to check.
+
+    Returns:
+        Extracted date or None if not found.
+    """
+    filename = path.stem
+    if has_date_prefix(filename):
+        # YYYYMMDD- prefix format
+        date_str = filename[:8]
+        try:
+            return parse_date_string(date_str)
+        except Exception:
+            pass
+    return None
+
+
+def _get_file_date(path: Path) -> date | None:
+    """Extract date from filename, then frontmatter clipped field.
+
+    Args:
+        path: Path to the file.
+
+    Returns:
+        Extracted date or None if not found.
+    """
+    # First try filename
+    result = _extract_date_from_filename(path)
+    if result:
+        return result
+
+    # Then try frontmatter clipped field
+    try:
+        content = path.read_text(encoding="utf-8")
+        parsed = parse_frontmatter(content)
+        clipped = parsed.data.get("clipped")
+        if clipped:
+            return parse_date_string(str(clipped))
+    except Exception:
+        pass
+
+    return None
+
+
+def pick_winner(paths: list[Path]) -> Path:
+    """Return the path to keep (oldest by date, then shortest stem for ties).
+
+    Args:
+        paths: List of paths to choose from.
+
+    Returns:
+        Path to the winner (file to keep).
+    """
+    if len(paths) == 1:
+        return paths[0]
+
+    def sort_key(p: Path) -> tuple:
+        d = _get_file_date(p)
+        # Sort by: (has_no_date, date, stem_length)
+        # Files with dates come first (has_no_date=False < True)
+        # Earlier dates come first
+        # Shorter stems break ties
+        return (0 if d else 1, d or date.max, len(p.stem))
+
+    return min(paths, key=sort_key)
+
+
+def resolve_duplicates(
+    groups: list[DuplicateGroup],
+    config: Config,
+    strategy: str = "oldest-wins",  # noqa: ARG001
+    dry_run: bool = False,
+) -> ResolveStats:
+    """Resolve duplicate groups by trashing losers.
+
+    Args:
+        groups: List of duplicate groups to resolve.
+        config: Application configuration.
+        strategy: Resolution strategy (currently only "oldest-wins").
+        dry_run: If True, don't actually trash files.
+
+    Returns:
+        ResolveStats with summary of operations.
+    """
+    from clipmd.core import trash
+
+    stats = ResolveStats(total_groups=len(groups))
+    to_trash: list[Path] = []
+
+    for group in groups:
+        winner = pick_winner(group.files)
+        losers = [f for f in group.files if f != winner]
+        stats.kept.append((group.key, winner))
+        to_trash.extend(losers)
+
+    # Trash the loser files
+    if to_trash:
+        trash_stats = trash.trash_files(to_trash, config, dry_run=dry_run)
+        stats.trashed = (
+            [p for p, _ in trash_stats.errors]
+            if trash_stats.errors
+            else to_trash[: trash_stats.trashed]
+        )
+        stats.errors = list(trash_stats.errors)
+
+    return stats
 
 
 def find_duplicates_by_url(root_dir: Path, config: Config) -> list[DuplicateGroup]:

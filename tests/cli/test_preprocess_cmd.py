@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from click.testing import CliRunner
 
 from clipmd.cli import main
+
+if TYPE_CHECKING:
+    import pytest
 
 
 class TestPreprocessCommand:
@@ -342,3 +346,52 @@ Content here.
         assert result.exit_code == 0
         # File should still exist with original name
         assert article.exists()
+
+    def test_auto_remove_dupes_flag(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test --auto-remove-dupes flag removes duplicate files."""
+        monkeypatch.chdir(tmp_path)
+
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text("version: 1\npaths:\n  root: .\n")
+
+        # Create two files with same URL (duplicates)
+        (tmp_path / "20240101-article.md").write_text(
+            "---\ntitle: Article\nsource: https://example.com/\n---\nContent."
+        )
+        (tmp_path / "20240115-article.md").write_text(
+            "---\ntitle: Article\nsource: https://example.com/\n---\nContent."
+        )
+
+        runner = CliRunner()
+        result = runner.invoke(main, ["preprocess", "--auto-remove-dupes", "--yes", str(tmp_path)])
+        assert result.exit_code == 0
+        # One file should be removed
+        remaining = list(tmp_path.glob("*.md"))
+        assert len(remaining) == 1
+
+    def test_auto_remove_dupes_dry_run(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test --auto-remove-dupes with --dry-run keeps files intact."""
+        monkeypatch.chdir(tmp_path)
+
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text("version: 1\npaths:\n  root: .\n")
+
+        # Create two files with same URL (duplicates)
+        (tmp_path / "20240101-article.md").write_text(
+            "---\ntitle: Article\nsource: https://example.com/\n---\nContent."
+        )
+        (tmp_path / "20240115-article.md").write_text(
+            "---\ntitle: Article\nsource: https://example.com/\n---\nContent."
+        )
+
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            ["preprocess", "--auto-remove-dupes", "--dry-run", "--yes", str(tmp_path)],
+        )
+        assert result.exit_code == 0
+        # Both files should still exist
+        remaining = list(tmp_path.glob("*.md"))
+        assert len(remaining) == 2

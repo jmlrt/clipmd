@@ -172,12 +172,11 @@ def sanitize_filename(
     return result
 
 
-def sanitize_title_for_filename(title: str, max_length: int = 100) -> str:
+def sanitize_title_for_filename(title: str) -> str:
     """Sanitize title for use in filename.
 
     Args:
         title: The title to sanitize.
-        max_length: Maximum length for the filename part.
 
     Returns:
         Sanitized title suitable for filename.
@@ -190,7 +189,4 @@ def sanitize_title_for_filename(title: str, max_length: int = 100) -> str:
     cleaned = re.sub(r"-+", "-", cleaned)
     # Strip leading/trailing dashes
     cleaned = cleaned.strip("-")
-    # Truncate
-    if len(cleaned) > max_length:
-        cleaned = cleaned[:max_length].rsplit("-", 1)[0]
     return cleaned or "article"

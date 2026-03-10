@@ -38,6 +38,11 @@ console = Console()
     type=click.Path(file_okay=False, path_type=Path),
     help="Source directory (default: config root)",
 )
+@click.option(
+    "--skip-missing",
+    is_flag=True,
+    help="Skip missing source files instead of halting on error",
+)
 @click.pass_context
 def move_command(
     ctx: click.Context,
@@ -46,6 +51,7 @@ def move_command(
     create_folders: bool,
     no_cache_update: bool,
     source_dir: Path | None,
+    skip_missing: bool,
 ) -> None:
     """Move files based on a categorization file.
 
@@ -155,6 +161,7 @@ def move_command(
         create_folders=create_folders,
         update_cache=not no_cache_update,
         dest_root=dest_root,
+        skip_missing=skip_missing,
     )
 
     # Display results
@@ -168,7 +175,8 @@ def move_command(
 
     # If files were not found and --source-dir was not explicitly set,
     # search the vault for those files and suggest the right --source-dir
-    if not source_dir_explicit and not dry_run:
+    # (unless --skip-missing was explicitly set)
+    if not source_dir_explicit and not dry_run and not skip_missing:
         missing = [f for f, e in move_stats.errors if e == "File not found"]
         if missing:
             suggestions = mover.suggest_source_dir(missing, config.paths.root)

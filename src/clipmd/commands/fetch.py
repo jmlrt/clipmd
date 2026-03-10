@@ -73,6 +73,11 @@ console = Console()
     is_flag=True,
     help="Skip cache update",
 )
+@click.option(
+    "--clear-after",
+    is_flag=True,
+    help="Clear URL file after successful fetch",
+)
 @click.pass_context
 def fetch_command(
     ctx: click.Context,
@@ -86,6 +91,7 @@ def fetch_command(
     dry_run: bool,
     output_format: str,
     no_cache_update: bool,
+    clear_after: bool,
 ) -> None:
     """Fetch URLs and convert to markdown with YAML frontmatter.
 
@@ -181,3 +187,9 @@ def fetch_command(
         cache.update_cache_after_fetch(orch_result.fetch_results, config)
         if output_format == "text":
             console.print("Cache updated.")
+
+    # Clear URL file if requested
+    if clear_after and url_file and not dry_run:
+        url_file.write_text("", encoding="utf-8")
+        if output_format == "text":
+            console.print(f"Cleared: {url_file}")
