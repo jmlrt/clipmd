@@ -175,15 +175,14 @@ def sanitize_filename(
 def sanitize_title_for_filename(title: str) -> str:
     """Sanitize title for use in filename.
 
-    Enforces filesystem-safe limits: typical limit is 255 bytes total.
-    Accounting for date prefix (9 bytes), extension (3 bytes), and separators,
-    max title is ~230 bytes. We use 200 to be conservative.
+    Removes special characters and normalizes spaces. Filenames are machine-consumed,
+    so we rely on the filesystem's limit (typically 255 bytes) rather than truncating.
 
     Args:
         title: The title to sanitize.
 
     Returns:
-        Sanitized title suitable for filename (max 200 chars for safety).
+        Sanitized title suitable for filename.
     """
     # Remove special characters, keep alphanumeric and spaces
     cleaned = re.sub(r"[^\w\s-]", "", title)
@@ -193,10 +192,5 @@ def sanitize_title_for_filename(title: str) -> str:
     cleaned = re.sub(r"-+", "-", cleaned)
     # Strip leading/trailing dashes
     cleaned = cleaned.strip("-")
-
-    # Enforce filesystem-safe limit (255 byte typical limit, minus date/ext overhead)
-    max_length = 200
-    if len(cleaned) > max_length:
-        cleaned = cleaned[:max_length].rsplit("-", 1)[0]
 
     return cleaned or "article"

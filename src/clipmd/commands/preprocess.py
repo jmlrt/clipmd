@@ -77,7 +77,7 @@ def preprocess_command(
         to_trash: list[Path] = []
         for group in stats.duplicate_groups:
             paths = [path for _, path in group]
-            winner = pick_winner(paths)
+            winner = pick_winner(paths, config)
             losers = [p for p in paths if p != winner]
             to_trash.extend(losers)
 

@@ -66,11 +66,12 @@ def _extract_date_from_filename(path: Path) -> date | None:
     return None
 
 
-def _get_file_date(path: Path) -> date | None:
+def _get_file_date(path: Path, config: Config | None = None) -> date | None:
     """Extract date from filename, then frontmatter clipped field.
 
     Args:
         path: Path to the file.
+        config: Application configuration (used for frontmatter field mapping).
 
     Returns:
         Extracted date or None if not found.
@@ -84,20 +85,31 @@ def _get_file_date(path: Path) -> date | None:
     try:
         content = path.read_text(encoding="utf-8")
         parsed = parse_frontmatter(content)
-        clipped = parsed.data.get("clipped")
-        if clipped:
-            return parse_date_string(str(clipped))
+        # Use configured field names or defaults
+        clipped_fields = ["clipped"]
+        if (
+            config
+            and hasattr(config, "frontmatter")
+            and hasattr(config.frontmatter, "clipped_date")
+        ):
+            clipped_fields = list(config.frontmatter.clipped_date) or ["clipped"]
+        # Try each configured field name
+        for field in clipped_fields:
+            clipped = parsed.data.get(field)
+            if clipped:
+                return parse_date_string(str(clipped))
     except Exception:
         pass
 
     return None
 
 
-def pick_winner(paths: list[Path]) -> Path:
+def pick_winner(paths: list[Path], config: Config | None = None) -> Path:
     """Return the path to keep (oldest by date, then shortest stem for ties).
 
     Args:
         paths: List of paths to choose from.
+        config: Application configuration (optional, used for frontmatter field mapping).
 
     Returns:
         Path to the winner (file to keep).
@@ -106,7 +118,7 @@ def pick_winner(paths: list[Path]) -> Path:
         return paths[0]
 
     def sort_key(p: Path) -> tuple:
-        d = _get_file_date(p)
+        d = _get_file_date(p, config)
         # Sort by: (has_no_date, date, stem_length)
         # Files with dates come first (has_no_date=False < True)
         # Earlier dates come first
@@ -139,7 +151,7 @@ def resolve_duplicates(
     to_trash_set: set[Path] = set()
 
     for group in groups:
-        winner = pick_winner(group.files)
+        winner = pick_winner(group.files, config)
         losers = [f for f in group.files if f != winner]
         stats.kept.append((group.key, winner))
         to_trash_set.update(losers)
@@ -148,8 +160,9 @@ def resolve_duplicates(
     if to_trash_set:
         to_trash = sorted(to_trash_set)  # Deterministic ordering
         trash_stats = trash.trash_files(to_trash, config, dry_run=dry_run)
-        # Track successfully trashed files (not error paths)
-        stats.trashed = to_trash[: trash_stats.trashed]
+        # Track successfully trashed files by excluding error paths
+        error_paths = {p for p, _ in trash_stats.errors}
+        stats.trashed = [p for p in to_trash if p not in error_paths]
         stats.errors = list(trash_stats.errors)
 
     return stats

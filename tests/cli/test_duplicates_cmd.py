@@ -238,3 +238,27 @@ class TestDuplicatesCommand:
         assert not (tmp_path / newer).exists()
         assert "Kept:" in result.output
         assert "Trashed" in result.output
+
+    def test_auto_resolve_multiple_methods_error(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test --auto-resolve rejects multiple detection methods."""
+        monkeypatch.chdir(tmp_path)
+
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text("version: 1\npaths:\n  root: .\n")
+
+        # Create files
+        (tmp_path / "article1.md").write_text(
+            "---\ntitle: Article 1\nurl: https://example.com/\n---\nContent."
+        )
+        (tmp_path / "article2.md").write_text(
+            "---\ntitle: Article 2\nurl: https://example.com/\n---\nContent."
+        )
+
+        runner = CliRunner()
+        result = runner.invoke(
+            main, ["duplicates", "--auto-resolve", "--by-url", "--by-hash", "--yes"]
+        )
+        assert result.exit_code == 1
+        assert "can only be used with one detection method" in result.output

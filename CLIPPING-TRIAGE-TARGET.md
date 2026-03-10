@@ -69,9 +69,9 @@ non-blocking.
 clipmd fetch --file /Users/jmlrt/Documents/Obsidian/Perso/Clippings/INBOX.md --clear-after
 ```
 
-Fetches all markdown links from INBOX.md, then atomically resets the file to
-its header-only state (`# INBOX`). If fetch fails partway, the file is NOT
-cleared — remaining URLs are preserved for retry.
+Fetches all markdown links from INBOX.md, then clears the file to empty. If fetch
+fails partway (with errors), the file is NOT cleared — remaining URLs are preserved
+for retry.
 
 ## Step 1: Preprocess
 

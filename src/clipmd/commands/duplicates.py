@@ -111,7 +111,7 @@ def duplicates_command(
     # Handle auto-resolve if requested
     if auto_resolve:
         # Restrict --auto-resolve to a single detection method to avoid overlapping groups
-        methods_enabled = sum([bool(result.by_url), bool(result.by_hash), bool(result.by_filename)])
+        methods_enabled = sum([by_url, by_hash, by_filename])
         if methods_enabled > 1:
             console.print(
                 "[red]Error:[/red] --auto-resolve can only be used with one detection "
