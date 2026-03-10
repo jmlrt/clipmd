@@ -51,6 +51,7 @@ class MoveStats:
     folders_created: list[str] = field(default_factory=list)
     errors: list[tuple[str, str]] = field(default_factory=list)
     skipped: int = 0
+    skipped_files: list[str] = field(default_factory=list)
 
 
 def parse_categorization_file(content: str) -> list[MoveInstruction]:
@@ -272,6 +273,7 @@ def execute_moves(
     create_folders: bool = True,
     update_cache: bool = True,
     dest_root: Path | None = None,
+    skip_missing: bool = False,
 ) -> MoveStats:
     """Execute all move instructions.
 
@@ -283,6 +285,7 @@ def execute_moves(
         create_folders: Whether to create folders if they don't exist.
         update_cache: Whether to update the cache after moving.
         dest_root: Root directory for destination (defaults to source_dir).
+        skip_missing: If True, skip missing files with a warning instead of error.
 
     Returns:
         MoveStats with summary of operations.
@@ -297,7 +300,11 @@ def execute_moves(
             # Just check if the move would succeed
             source = source_dir / instruction.filename
             if not source.exists():
-                stats.errors.append((instruction.filename, "File not found"))
+                if skip_missing:
+                    stats.skipped += 1
+                    stats.skipped_files.append(instruction.filename)
+                else:
+                    stats.errors.append((instruction.filename, "File not found"))
                 continue
 
             if instruction.is_trash:
@@ -340,7 +347,11 @@ def execute_moves(
                     created_folders.add(instruction.category)
                     stats.folders_created.append(instruction.category)
         else:
-            stats.errors.append((instruction.filename, result.error or "Unknown error"))
+            if skip_missing and result.error == "File not found":
+                stats.skipped += 1
+                stats.skipped_files.append(instruction.filename)
+            else:
+                stats.errors.append((instruction.filename, result.error or "Unknown error"))
 
     # Update cache if requested
     if update_cache and not dry_run:
@@ -431,8 +442,12 @@ def format_move_results(
             lines.append("Moved:")
 
         error_filenames = {e[0] for e in stats.errors}
+        skipped_filenames = set(stats.skipped_files)
         for instruction in instructions:
-            if instruction.filename not in error_filenames:
+            if (
+                instruction.filename not in error_filenames
+                and instruction.filename not in skipped_filenames
+            ):
                 if instruction.is_trash:
                     lines.append(f"  ✓ {instruction.filename} → Trash")
                 else:
@@ -444,6 +459,10 @@ def format_move_results(
         for filename, error in stats.errors:
             lines.append(f"  ✗ {filename}: {error}")
 
+    # Skipped files
+    if stats.skipped > 0:
+        lines.append(f"\n[yellow]WARN: {stats.skipped} files skipped (not found)[/yellow]")
+
     # Summary
     summary_parts = []
     if stats.moved > 0:
@@ -452,6 +471,8 @@ def format_move_results(
         summary_parts.append(f"{stats.trashed} trashed")
     if stats.folders_created:
         summary_parts.append(f"{len(stats.folders_created)} folders created")
+    if stats.skipped > 0:
+        summary_parts.append(f"{stats.skipped} skipped")
 
     if summary_parts:
         lines.append(f"\nSummary: {', '.join(summary_parts)}")

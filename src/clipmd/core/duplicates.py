@@ -5,10 +5,11 @@ from __future__ import annotations
 import json
 from collections import defaultdict
 from dataclasses import dataclass, field
+from datetime import date
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from clipmd.core.dates import has_date_prefix
+from clipmd.core.dates import has_date_prefix, parse_date_string
 from clipmd.core.discovery import discover_markdown_files
 from clipmd.core.frontmatter import get_source_url, parse_frontmatter
 from clipmd.core.hasher import hash_content
@@ -33,6 +34,89 @@ class DuplicateResult:
     by_url: list[DuplicateGroup] = field(default_factory=list)
     by_hash: list[DuplicateGroup] = field(default_factory=list)
     by_filename: list[DuplicateGroup] = field(default_factory=list)
+
+
+def _extract_date_from_filename(path: Path) -> date | None:
+    """Extract date from filename using date prefix pattern.
+
+    Args:
+        path: Path to check.
+
+    Returns:
+        Extracted date or None if not found.
+    """
+    filename = path.stem
+    if has_date_prefix(filename):
+        # YYYYMMDD- prefix format
+        date_str = filename[:8]
+        try:
+            return parse_date_string(date_str)
+        except Exception:
+            pass
+    return None
+
+
+def _get_file_date(path: Path, config: Config | None = None) -> date | None:
+    """Extract date from filename, then frontmatter clipped field.
+
+    Args:
+        path: Path to the file.
+        config: Application configuration (used for frontmatter field mapping).
+
+    Returns:
+        Extracted date or None if not found.
+    """
+    # First try filename
+    result = _extract_date_from_filename(path)
+    if result:
+        return result
+
+    # Then try frontmatter clipped field
+    try:
+        content = path.read_text(encoding="utf-8")
+        parsed = parse_frontmatter(content)
+        # Use configured field names or defaults
+        clipped_fields = ["clipped"]
+        if (
+            config
+            and hasattr(config, "frontmatter")
+            and hasattr(config.frontmatter, "clipped_date")
+        ):
+            clipped_fields = list(config.frontmatter.clipped_date) or ["clipped"]
+        # Try each configured field name
+        for field in clipped_fields:
+            clipped = parsed.data.get(field)
+            if clipped:
+                return parse_date_string(str(clipped))
+    except Exception:
+        pass
+
+    return None
+
+
+def pick_winner(paths: list[Path], config: Config | None = None) -> Path:
+    """Return the path to keep (oldest by date, then shortest stem for ties).
+
+    Args:
+        paths: List of paths to choose from.
+        config: Application configuration (optional, used for frontmatter field mapping).
+
+    Returns:
+        Path to the winner (file to keep).
+    """
+    if len(paths) == 1:
+        return paths[0]
+
+    def sort_key(p: Path) -> tuple:
+        d = _get_file_date(p, config)
+        # Sort by: (has_no_date, date, stem_length, normalized_path_string)
+        # Files with dates come first (has_no_date=False < True)
+        # Earlier dates come first
+        # Shorter stems break ties
+        # Normalized path string breaks final ties deterministically
+        return (0 if d else 1, d or date.max, len(p.stem), str(p))
+
+    return min(paths, key=sort_key)
 
 
 def find_duplicates_by_url(root_dir: Path, config: Config) -> list[DuplicateGroup]:

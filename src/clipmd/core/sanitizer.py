@@ -8,6 +8,7 @@ Note: We use custom sanitize_filename() rather than python-slugify because:
 
 from __future__ import annotations
 
+import hashlib
 import re
 import unicodedata
 from typing import TYPE_CHECKING
@@ -172,12 +173,16 @@ def sanitize_filename(
     return result
 
 
-def sanitize_title_for_filename(title: str, max_length: int = 100) -> str:
+def sanitize_title_for_filename(title: str) -> str:
     """Sanitize title for use in filename.
+
+    Removes special characters and normalizes spaces. Enforces a byte-based limit
+    (242 bytes) to leave room for date prefix (9 bytes) and extension (3 bytes)
+    within the filesystem limit (255 bytes). When truncation is needed, appends
+    a short hash to avoid collisions.
 
     Args:
         title: The title to sanitize.
-        max_length: Maximum length for the filename part.
 
     Returns:
         Sanitized title suitable for filename.
@@ -190,7 +195,21 @@ def sanitize_title_for_filename(title: str, max_length: int = 100) -> str:
     cleaned = re.sub(r"-+", "-", cleaned)
     # Strip leading/trailing dashes
     cleaned = cleaned.strip("-")
-    # Truncate
-    if len(cleaned) > max_length:
-        cleaned = cleaned[:max_length].rsplit("-", 1)[0]
-    return cleaned or "article"
+
+    result = cleaned or "article"
+
+    # Enforce filesystem-safe byte limit (255 total, accounting for all components)
+    # Reserve: 9 bytes for date prefix (YYYYMMDD-) + 3 bytes for .md extension
+    #          + 5 bytes for counter suffix (-9999) in get_unique_filepath()
+    max_bytes = 238  # 255 - 9 - 3 - 5 = 238
+    result_bytes = result.encode("utf-8")
+
+    if len(result_bytes) > max_bytes:
+        # Truncate and append hash to prevent collisions
+        hash_suffix = hashlib.md5(result.encode("utf-8")).hexdigest()[:8]
+        # Leave room for hash suffix (9 bytes: "-" + 8 char hash)
+        available = max_bytes - 9
+        result = result_bytes[:available].decode("utf-8", errors="ignore").rstrip("-")
+        result = f"{result}-{hash_suffix}"
+
+    return result

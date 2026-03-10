@@ -73,6 +73,11 @@ console = Console()
     is_flag=True,
     help="Skip cache update",
 )
+@click.option(
+    "--clear-after",
+    is_flag=True,
+    help="Clear URL file after successful fetch",
+)
 @click.pass_context
 def fetch_command(
     ctx: click.Context,
@@ -86,6 +91,7 @@ def fetch_command(
     dry_run: bool,
     output_format: str,
     no_cache_update: bool,
+    clear_after: bool,
 ) -> None:
     """Fetch URLs and convert to markdown with YAML frontmatter.
 
@@ -177,7 +183,19 @@ def fetch_command(
 
     # Update cache
     stats = orch_result.process_result.stats
+    cache_updated = False
     if not dry_run and not no_cache_update and stats.saved > 0:
         cache.update_cache_after_fetch(orch_result.fetch_results, config)
+        cache_updated = True
         if output_format == "text":
             console.print("Cache updated.")
+
+    # Clear URL file only if cache was successfully updated (atomic operation)
+    if clear_after and url_file and not dry_run and cache_updated and not stats.errors:
+        try:
+            url_file.write_text("", encoding="utf-8")
+            if output_format == "text":
+                console.print(f"Cleared: {url_file}")
+        except OSError as e:
+            console.print(f"[red]Failed to clear URL file:[/red] {e}")
+            raise SystemExit(1) from e

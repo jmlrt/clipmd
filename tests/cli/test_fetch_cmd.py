@@ -237,7 +237,15 @@ class TestFetchHelpers:
         assert sanitize_title_for_filename("Hello World") == "Hello-World"
         assert sanitize_title_for_filename("Test: Article!") == "Test-Article"
         assert sanitize_title_for_filename("  Spaced  ") == "Spaced"
-        assert sanitize_title_for_filename("A" * 200)[:100]  # Truncated
+        # Titles under filesystem-safe byte limit (242 bytes) pass through unchanged
+        long_title = "A" * 200
+        assert sanitize_title_for_filename(long_title) == long_title
+        # Verify very long titles (exceeding 242-byte filesystem limit) are truncated + hash suffix added
+        very_long = "The Quick Brown Fox Jumps Over The Lazy Dog " * 10
+        result = sanitize_title_for_filename(very_long)
+        # Result should be <= 242 bytes and include hash suffix for collision avoidance
+        assert len(result.encode("utf-8")) <= 242
+        assert "-" in result  # Contains hash suffix separator
 
     def test_generate_filename(self) -> None:
         """Test filename generation."""

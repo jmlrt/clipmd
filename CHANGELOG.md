@@ -10,9 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `stats` command now accepts an optional `PATH` argument to scope statistics to a subdirectory (e.g., `clipmd stats Clippings/`)
+- `preprocess --auto-remove-dupes` flag to automatically trash duplicate files detected during preprocessing (no confirmation prompt)
+- `fetch --file --clear-after` flag to reset the URL file to empty after all URLs are successfully fetched
+- `move --skip-missing` flag to skip missing source files with a warning instead of halting on error
 
 ### Fixed
 
+- `fetch` command no longer truncates long article titles in generated filenames
 - `extract` command no longer wraps long filenames at terminal width (outputs raw text for LLM processing)
 - `move` command now resolves destination folders to vault root when `--source-dir` is a relative path (fixes nested folder creation)
 - `fetch --rss` no longer re-downloads articles that were previously trashed
