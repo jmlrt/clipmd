@@ -8,6 +8,7 @@ Note: We use custom sanitize_filename() rather than python-slugify because:
 
 from __future__ import annotations
 
+import hashlib
 import re
 import unicodedata
 from typing import TYPE_CHECKING
@@ -175,8 +176,10 @@ def sanitize_filename(
 def sanitize_title_for_filename(title: str) -> str:
     """Sanitize title for use in filename.
 
-    Removes special characters and normalizes spaces. Filenames are machine-consumed,
-    so we rely on the filesystem's limit (typically 255 bytes) rather than truncating.
+    Removes special characters and normalizes spaces. Enforces a byte-based limit
+    (242 bytes) to leave room for date prefix (9 bytes) and extension (3 bytes)
+    within the filesystem limit (255 bytes). When truncation is needed, appends
+    a short hash to avoid collisions.
 
     Args:
         title: The title to sanitize.
@@ -193,4 +196,19 @@ def sanitize_title_for_filename(title: str) -> str:
     # Strip leading/trailing dashes
     cleaned = cleaned.strip("-")
 
-    return cleaned or "article"
+    result = cleaned or "article"
+
+    # Enforce filesystem-safe byte limit (255 total, minus date prefix and extension)
+    # Reserve 9 bytes for date prefix (YYYYMMDD-) and 3 bytes for extension
+    max_bytes = 242
+    result_bytes = result.encode("utf-8")
+
+    if len(result_bytes) > max_bytes:
+        # Truncate and append hash to prevent collisions
+        hash_suffix = hashlib.md5(result.encode("utf-8")).hexdigest()[:8]
+        # Leave room for hash suffix (9 bytes: "-" + 8 char hash)
+        available = max_bytes - 9
+        result = result_bytes[:available].decode("utf-8", errors="ignore").rstrip("-")
+        result = f"{result}-{hash_suffix}"
+
+    return result

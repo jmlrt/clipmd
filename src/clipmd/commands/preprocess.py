@@ -74,29 +74,38 @@ def preprocess_command(
         from clipmd.core import trash
         from clipmd.core.duplicates import pick_winner
 
-        to_trash: list[Path] = []
+        to_trash: set[Path] = set()
         for group in stats.duplicate_groups:
-            paths = [path for _, path in group]
+            # Extract and normalize paths (may be relative from cache)
+            paths = []
+            for _, p in group:
+                # Normalize to absolute path under config root
+                if not p.is_absolute():
+                    p = config.paths.root / p
+                paths.append(p)
+
             winner = pick_winner(paths, config)
             losers = [p for p in paths if p != winner]
-            to_trash.extend(losers)
+            to_trash.update(losers)  # Use set to deduplicate
 
         if to_trash:
+            # Sort for deterministic display
+            to_trash_list = sorted(to_trash)
             should_remove = yes
             if not yes:
                 console.print(
-                    f"\n[yellow]Found {len(to_trash)} duplicate files to remove:[/yellow]"
+                    f"\n[yellow]Found {len(to_trash_list)} duplicate files to remove:[/yellow]"
                 )
-                for p in to_trash:
+                for p in to_trash_list:
                     console.print(f"  - {p.name}")
                 should_remove = click.confirm("Remove duplicates?")
 
             if should_remove:
                 if not dry_run:
-                    trash_stats = trash.trash_files(to_trash, config, dry_run=False)
+                    trash_stats = trash.trash_files(to_trash_list, config, dry_run=False)
                     console.print(f"Removed {trash_stats.trashed} duplicate files")
                 else:
-                    console.print(f"[dry-run] Would remove {len(to_trash)} duplicate files")
+                    console.print(f"[dry-run] Would remove {len(to_trash_list)} duplicate files")
 
     # Display summary
     summary_lines = preprocessor.format_preprocess_summary(

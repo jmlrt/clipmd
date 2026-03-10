@@ -119,11 +119,12 @@ def pick_winner(paths: list[Path], config: Config | None = None) -> Path:
 
     def sort_key(p: Path) -> tuple:
         d = _get_file_date(p, config)
-        # Sort by: (has_no_date, date, stem_length)
+        # Sort by: (has_no_date, date, stem_length, normalized_path_string)
         # Files with dates come first (has_no_date=False < True)
         # Earlier dates come first
         # Shorter stems break ties
-        return (0 if d else 1, d or date.max, len(p.stem))
+        # Normalized path string breaks final ties deterministically
+        return (0 if d else 1, d or date.max, len(p.stem), str(p))
 
     return min(paths, key=sort_key)
 
