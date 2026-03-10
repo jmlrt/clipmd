@@ -98,4 +98,7 @@ NOTES.md
 
 # Test artifacts
 tests/fixtures/temp/
+
+# Claude Code settings (IMPORTANT: only .claude/settings.json should be committed)
+# .claude/settings.local.json is for personal overrides only and must NEVER be committed
 .claude/settings.local.json
