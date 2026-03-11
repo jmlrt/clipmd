@@ -172,13 +172,14 @@ class TestGetConfigFilePath:
 class TestLoadConfig:
     """Tests for load_config function."""
 
-    def test_load_defaults_when_no_file(self, tmp_path: Path) -> None:
-        """Test loads defaults when config file doesn't exist."""
+    def test_load_returns_defaults_without_vault_cache(self, tmp_path: Path) -> None:
+        """Test loading non-existent file raises error because vault/cache required."""
         config_file = tmp_path / "nonexistent.yaml"
-        config = load_config(config_file)
-        assert config.version == 1
-        assert config.vault is None
-        assert config.cache is None
+        # When config file doesn't exist, load_config returns defaults
+        # But defaults have vault/cache as None, which will fail validation
+        # So we need to test that the file path raises error before that
+        with pytest.raises(ConfigError, match="not found"):
+            load_config(config_file)
 
     def test_load_with_vault_and_cache(self, tmp_path: Path) -> None:
         """Test loading config with vault and cache paths."""

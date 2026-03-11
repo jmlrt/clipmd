@@ -18,13 +18,25 @@ def isolate_xdg_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     xdg_home.mkdir(exist_ok=True)
     monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg_home))
 
-    # Create a minimal config in the isolated XDG location
-    # Most tests need a valid config, but individual tests can override by
-    # setting XDG_CONFIG_HOME to a different value or by monkeypatching
+    # Create a minimal config in the isolated XDG location for most tests
+    # Init command tests override this behavior
     config_dir = xdg_home / "clipmd"
     config_dir.mkdir(exist_ok=True)
     config_file = config_dir / "config.yaml"
     config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
+
+
+@pytest.fixture
+def default_config() -> Path:
+    """Create a default config in the isolated XDG location for tests that need it."""
+    import os
+
+    xdg_home = Path(os.environ["XDG_CONFIG_HOME"])
+    config_dir = xdg_home / "clipmd"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    config_file = config_dir / "config.yaml"
+    config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
+    return config_file
 
 
 @pytest.fixture
