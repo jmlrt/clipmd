@@ -12,24 +12,6 @@ from pydantic import BaseModel, Field
 from clipmd.exceptions import ConfigError
 
 
-def expand_env_vars(path_str: str) -> str:
-    """Expand environment variables in a path string.
-
-    Supports $VAR and ${VAR} syntax. Unknown variables are left as-is.
-
-    Args:
-        path_str: Path string potentially containing $VAR or ${VAR}.
-
-    Returns:
-        Path string with environment variables expanded.
-    """
-    return os.path.expandvars(path_str)
-
-
-# XDG Base Directory specification
-XDG_CONFIG_HOME = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
-
-
 class SpecialFoldersConfig(BaseModel):
     """Configuration for special folder handling."""
 
@@ -123,21 +105,6 @@ class FilenamesConfig(BaseModel):
     collapse_dashes: bool = True
 
 
-class ContentCleaningPatternConfig(BaseModel):
-    """Configuration for a single content cleaning pattern."""
-
-    name: str
-    pattern: str
-    flags: str = "im"
-
-
-class ContentCleaningConfig(BaseModel):
-    """Configuration for content cleaning."""
-
-    enabled: bool = False
-    patterns: list[ContentCleaningPatternConfig] = Field(default_factory=list)
-
-
 class FoldersConfig(BaseModel):
     """Configuration for folder statistics."""
 
@@ -183,15 +150,6 @@ description: "{description}"
     )
 
 
-class OutputConfig(BaseModel):
-    """Configuration for output formats."""
-
-    metadata_format: Literal["markdown", "json", "yaml"] = "markdown"
-    include_content: bool = True
-    max_content_chars: int = 150
-    stats_format: Literal["table", "json", "yaml"] = "table"
-
-
 class Config(BaseModel):
     """Main configuration for clipmd."""
 
@@ -203,21 +161,23 @@ class Config(BaseModel):
     dates: DatesConfig = Field(default_factory=DatesConfig)
     url_cleaning: UrlCleaningConfig = Field(default_factory=UrlCleaningConfig)
     filenames: FilenamesConfig = Field(default_factory=FilenamesConfig)
-    content_cleaning: ContentCleaningConfig = Field(default_factory=ContentCleaningConfig)
     folders: FoldersConfig = Field(default_factory=FoldersConfig)
-    cache_config: CacheConfig = Field(default_factory=CacheConfig, alias="cache_settings")
+    cache_config: CacheConfig = Field(default_factory=CacheConfig)
     fetch: FetchConfig = Field(default_factory=FetchConfig)
-    output: OutputConfig = Field(default_factory=OutputConfig)
+    domain_rules: dict[str, str] = Field(
+        default_factory=dict,
+        description="Domain to folder mappings for automatic categorization (e.g. {'github.com': 'Dev-Tools'})",
+    )
 
     def model_post_init(self, __context: object) -> None:
         """Expand environment variables in vault and cache paths."""
         del __context  # Unused, required by pydantic interface
         if self.vault is not None:
             vault_str = str(self.vault)
-            self.vault = Path(expand_env_vars(vault_str))
+            self.vault = Path(os.path.expandvars(vault_str))
         if self.cache is not None:
             cache_str = str(self.cache)
-            self.cache = Path(expand_env_vars(cache_str))
+            self.cache = Path(os.path.expandvars(cache_str))
 
 
 def get_xdg_config_home() -> Path:
@@ -300,42 +260,3 @@ def load_config(config_path: Path | None = None) -> Config:
         return config
     except ValueError as e:
         raise ConfigError(f"Invalid configuration in {config_file}: {e}") from e
-
-
-def get_vault_root(config: Config) -> Path:
-    """Get the vault root directory from configuration.
-
-    The vault path must be configured in ~/.config/clipmd/config.yaml.
-    Environment variables (e.g., $HOME) are expanded automatically.
-
-    Args:
-        config: Application configuration.
-
-    Returns:
-        Resolved absolute path to the vault root.
-
-    Raises:
-        ConfigError: If vault is not configured.
-    """
-    if config.vault is None:
-        raise ConfigError(
-            "Vault path not configured in ~/.config/clipmd/config.yaml.\n"
-            "Add:\n  vault: $HOME/Documents/Articles"
-        )
-    return config.vault.resolve()
-
-
-def validate_config_paths(config: Config) -> None:
-    """Validate that vault and cache are configured.
-
-    Raises:
-        ConfigError: If vault or cache are not configured.
-    """
-    if config.vault is None:
-        raise ConfigError(
-            "Vault path not configured in config. Add:\n  vault: $HOME/Documents/Articles"
-        )
-    if config.cache is None:
-        raise ConfigError(
-            "Cache path not configured in config. Add:\n  cache: $HOME/.cache/clipmd/cache.json"
-        )

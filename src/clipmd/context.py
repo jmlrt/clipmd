@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from clipmd.config import get_vault_root, load_config, validate_config_paths
+from clipmd.config import load_config
 
 if TYPE_CHECKING:
     from clipmd.config import Config
@@ -26,8 +26,6 @@ class Context:
         if self.config is None:
             self.config = load_config(config_path)
             self.config_path = config_path
-            # Validate that vault and cache are configured
-            validate_config_paths(self.config)
         return self.config
 
     def get_vault_root(self) -> Path:
@@ -39,4 +37,5 @@ class Context:
         if self.config is None:
             self.load_config()
         assert self.config is not None
-        return get_vault_root(self.config)
+        assert self.config.vault is not None  # Guaranteed by load_config
+        return self.config.vault.resolve()

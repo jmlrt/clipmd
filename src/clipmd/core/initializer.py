@@ -184,9 +184,9 @@ def get_full_config() -> str:
           warn_above: 45    # Warn if folder has more articles
 
         # =============================================================================
-        # CACHE SETTINGS
+        # CACHE TRACKING SETTINGS
         # =============================================================================
-        cache:
+        cache_config:
           # What to track
           track_urls: true
           track_content_hash: true
@@ -212,20 +212,6 @@ def get_full_config() -> str:
 
           # Readability mode - extract main content only
           readability: true
-
-        # =============================================================================
-        # OUTPUT FORMATS
-        # =============================================================================
-        output:
-          # Default format for metadata extraction
-          metadata_format: "markdown"  # markdown, json, yaml
-
-          # Include content preview in metadata
-          include_content: true
-          max_content_chars: 150
-
-          # Statistics output
-          stats_format: "table"  # table, json, yaml
         """)
 
 

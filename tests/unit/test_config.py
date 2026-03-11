@@ -14,7 +14,6 @@ from clipmd.config import (
     FilenamesConfig,
     FoldersConfig,
     FrontmatterConfig,
-    OutputConfig,
     SpecialFoldersConfig,
     UrlCleaningConfig,
     get_config_file_path,
@@ -113,16 +112,6 @@ class TestFetchConfig:
         assert config.timeout == 30
         assert config.max_concurrent == 5
         assert config.readability is True
-
-
-class TestOutputConfig:
-    """Tests for OutputConfig."""
-
-    def test_defaults(self) -> None:
-        """Test default output settings."""
-        config = OutputConfig()
-        assert config.metadata_format == "markdown"
-        assert config.max_content_chars == 150
 
 
 class TestConfig:

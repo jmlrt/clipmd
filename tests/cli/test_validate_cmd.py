@@ -54,8 +54,8 @@ class TestValidateCommand:
         runner = CliRunner()
         result = runner.invoke(main, ["validate"])
         assert result.exit_code == 1
-        # When no config is found, defaults are loaded but vault is not configured
-        assert "vault" in result.output.lower() or "not configured" in result.output.lower()
+        # When no config is found, error message indicates config file not found
+        assert "config" in result.output.lower() and "found" in result.output.lower()
 
     def test_invalid_config_syntax(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test validation with invalid config syntax."""
