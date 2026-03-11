@@ -53,15 +53,17 @@ def get_full_config() -> str:
         Full YAML configuration.
     """
     return dedent("""\
-        # clipmd configuration
+        # clipmd configuration (~/.config/clipmd/config.yaml)
         version: 1
 
         # =============================================================================
         # PATHS
         # =============================================================================
-        paths:
-          root: "."                           # Root articles directory
-          cache: ".clipmd/cache.json"         # URL/content cache
+        # Path to your articles vault
+        vault: $HOME/Documents/Obsidian/Perso/Clippings
+
+        # Path to cache file
+        cache: $HOME/.cache/clipmd/cache.json
 
         # Special folders (leave patterns empty if you don't want any)
         special_folders:

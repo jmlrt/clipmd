@@ -63,7 +63,7 @@ pass_context = click.make_pass_decorator(Context, ensure=True)
 @click.version_option(version=__version__, prog_name="clipmd")
 @pass_context
 def main(
-    ctx: Context,
+    ctx_obj: Context,
     verbose: int,
     quiet: bool,
     config_path: Path | None,
@@ -76,9 +76,9 @@ def main(
 
     Configuration: ~/.config/clipmd/config.yaml
     """
-    ctx.verbose = verbose
-    ctx.quiet = quiet
-    ctx.no_color = no_color
+    ctx_obj.verbose = verbose
+    ctx_obj.quiet = quiet
+    ctx_obj.no_color = no_color
 
     # Configure console colors
     if no_color:
@@ -90,11 +90,14 @@ def main(
         setup_logging(verbose)
 
     # Load config (will be used by subcommands)
-    try:
-        ctx.load_config(config_path)
-    except ClipmdError as e:
-        error_console.print(f"[red]Error:[/red] {e}")
-        sys.exit(e.exit_code)
+    # Skip config loading for init command (it doesn't need a valid config)
+    click_ctx = click.get_current_context()
+    if click_ctx.invoked_subcommand != "init":
+        try:
+            ctx_obj.load_config(config_path)
+        except ClipmdError as e:
+            error_console.print(f"[red]Error:[/red] {e}")
+            sys.exit(e.exit_code)
 
 
 @main.command()
