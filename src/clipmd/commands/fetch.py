@@ -113,7 +113,14 @@ def fetch_command(
         console.print("[red]Error:[/red] No configuration loaded")
         raise SystemExit(1)
 
-    assert config.vault is not None, "Vault path not configured"
+    if config.vault is None:
+        console.print("[red]Error:[/red] Vault path not configured in ~/.config/clipmd/config.yaml")
+        raise SystemExit(1)
+
+    # Validate cache is configured for fetch operations
+    if config.cache is None:
+        console.print("[red]Error:[/red] Cache path not configured in ~/.config/clipmd/config.yaml")
+        raise SystemExit(1)
 
     # Determine output directory
     output_dir = output or config.vault

@@ -70,7 +70,9 @@ def move_command(
         raise SystemExit(1)
 
     # Ensure vault is configured
-    assert config.vault is not None, "Vault path not configured"
+    if config.vault is None:
+        console.print("[red]Error:[/red] Vault path not configured in ~/.config/clipmd/config.yaml")
+        raise SystemExit(1)
 
     # Track whether --source-dir was explicitly passed
     source_dir_explicit = source_dir is not None
@@ -82,7 +84,9 @@ def move_command(
         # Normalize relative paths against vault
         source_dir = config.vault / source_dir
 
-    assert source_dir is not None
+    if source_dir is None:
+        console.print("[red]Error:[/red] Could not determine source directory")
+        raise SystemExit(1)
 
     # Validate that source directory exists and is a directory after normalization
     if not source_dir.exists():

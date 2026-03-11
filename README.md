@@ -30,9 +30,6 @@ pip install clipmd[lang]
 version: 1
 vault: $HOME/Documents/Articles
 cache: $HOME/.cache/clipmd/cache.json
-domain_rules:
-  github.com: Dev-Tools
-  arxiv.org: Science
 ```
 
 **2. Use clipmd:**

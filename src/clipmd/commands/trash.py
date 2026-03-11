@@ -46,7 +46,9 @@ def trash_command(
         console.print("[red]Error:[/red] No configuration loaded")
         raise SystemExit(1)
 
-    assert config.vault is not None, "Vault path not configured"
+    if config.vault is None:
+        console.print("[red]Error:[/red] Vault path not configured in ~/.config/clipmd/config.yaml")
+        raise SystemExit(1)
 
     # Expand glob patterns
     paths = trash.expand_glob_patterns(list(files), config.vault)

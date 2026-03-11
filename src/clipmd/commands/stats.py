@@ -57,9 +57,13 @@ def stats_command(
         console.print("[red]Error:[/red] No configuration loaded")
         raise SystemExit(1)
 
-    assert config.vault is not None, "Vault path not configured"
+    if path is None and config.vault is None:
+        console.print("[red]Error:[/red] Vault path not configured in ~/.config/clipmd/config.yaml")
+        raise SystemExit(1)
 
+    # At this point, either path or config.vault is set
     target_path = path or config.vault
+    assert target_path is not None  # Guaranteed by check above
     folder_stats = stats.collect_folder_stats(target_path, config, include_special)
 
     if warnings_only:

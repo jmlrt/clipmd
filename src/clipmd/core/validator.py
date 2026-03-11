@@ -46,10 +46,10 @@ class ValidationReport:
 
 
 def validate_config_exists(config_path: Path | None) -> ValidationResult:
-    """Check if config file exists at ~/.config/clipmd/config.yaml.
+    """Check if config file exists at $XDG_CONFIG_HOME/clipmd/config.yaml.
 
     Args:
-        config_path: Explicit config path or None to use default.
+        config_path: Explicit config path or None to use default ($XDG_CONFIG_HOME/clipmd/config.yaml).
 
     Returns:
         Validation result.
@@ -67,7 +67,10 @@ def validate_config_exists(config_path: Path | None) -> ValidationResult:
         return ValidationResult(
             passed=False,
             message=f"Config file not found at {path}",
-            details="Run 'clipmd init' to create one",
+            details=(
+                f"Create a config file at {path}. You can use the project's "
+                "example-config.yaml as a starting point."
+            ),
         )
 
     return ValidationResult(

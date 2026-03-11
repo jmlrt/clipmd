@@ -16,16 +16,6 @@ vault: $HOME/Documents/Articles
 cache: $HOME/.cache/clipmd/cache.json
 
 # =============================================================================
-# AUTO-CATEGORIZATION
-# =============================================================================
-
-# Domain to folder mappings (skips LLM categorization for known sources)
-domain_rules:
-  github.com: Dev-Tools
-  arxiv.org: Science
-  example.com: News
-
-# =============================================================================
 # FOLDER MANAGEMENT
 # =============================================================================
 
