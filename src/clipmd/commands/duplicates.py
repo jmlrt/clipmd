@@ -62,7 +62,9 @@ def duplicates_command(
         console.print("[red]Error:[/red] No configuration loaded")
         raise SystemExit(1)
 
-    root_dir = config.paths.root
+    assert config.vault is not None, "Vault path not configured"
+
+    root_dir = config.vault
 
     # Default to by-url if no method specified
     if not by_url and not by_hash and not by_filename:

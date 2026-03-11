@@ -113,8 +113,10 @@ def fetch_command(
         console.print("[red]Error:[/red] No configuration loaded")
         raise SystemExit(1)
 
+    assert config.vault is not None, "Vault path not configured"
+
     # Determine output directory
-    output_dir = output or config.paths.root
+    output_dir = output or config.vault
 
     # Quick checks
     if not urls and not url_file:

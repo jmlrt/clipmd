@@ -53,13 +53,7 @@ pass_context = click.make_pass_decorator(Context, ensure=True)
     "--config",
     "config_path",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
-    help="Use custom config file",
-)
-@click.option(
-    "--vault",
-    "vault_path",
-    type=click.Path(exists=True, file_okay=False, path_type=Path),
-    help="Use specific vault directory (overrides default)",
+    help="Use custom config file (default: ~/.config/clipmd/config.yaml)",
 )
 @click.option(
     "--no-color",
@@ -73,18 +67,18 @@ def main(
     verbose: int,
     quiet: bool,
     config_path: Path | None,
-    vault_path: Path | None,
     no_color: bool,
 ) -> None:
     """clipmd - Clip, organize, and manage markdown articles.
 
     A CLI tool for saving, organizing, and managing markdown articles
     with YAML frontmatter. Designed to assist LLM-based workflows.
+
+    Configuration: ~/.config/clipmd/config.yaml
     """
     ctx.verbose = verbose
     ctx.quiet = quiet
     ctx.no_color = no_color
-    ctx.vault_override = vault_path
 
     # Configure console colors
     if no_color:
@@ -98,9 +92,6 @@ def main(
     # Load config (will be used by subcommands)
     try:
         ctx.load_config(config_path)
-        # Update paths.root to the resolved vault root
-        if ctx.config is not None:
-            ctx.config.paths.root = ctx.get_vault_root()
     except ClipmdError as e:
         error_console.print(f"[red]Error:[/red] {e}")
         sys.exit(e.exit_code)

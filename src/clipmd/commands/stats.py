@@ -57,7 +57,9 @@ def stats_command(
         console.print("[red]Error:[/red] No configuration loaded")
         raise SystemExit(1)
 
-    target_path = path or config.paths.root
+    assert config.vault is not None, "Vault path not configured"
+
+    target_path = path or config.vault
     folder_stats = stats.collect_folder_stats(target_path, config, include_special)
 
     if warnings_only:

@@ -11,15 +11,23 @@ from pydantic import BaseModel, Field
 
 from clipmd.exceptions import ConfigError
 
+
+def expand_env_vars(path_str: str) -> str:
+    """Expand environment variables in a path string.
+
+    Supports $VAR and ${VAR} syntax. Unknown variables are left as-is.
+
+    Args:
+        path_str: Path string potentially containing $VAR or ${VAR}.
+
+    Returns:
+        Path string with environment variables expanded.
+    """
+    return os.path.expandvars(path_str)
+
+
 # XDG Base Directory specification
 XDG_CONFIG_HOME = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
-
-
-class PathsConfig(BaseModel):
-    """Configuration for file paths."""
-
-    root: Path = Path(".")
-    cache: Path = Path(".clipmd/cache.json")
 
 
 class SpecialFoldersConfig(BaseModel):
@@ -188,8 +196,8 @@ class Config(BaseModel):
     """Main configuration for clipmd."""
 
     version: int = 1
-    default_vault: Path | None = None  # Path to default vault (used from XDG config)
-    paths: PathsConfig = Field(default_factory=PathsConfig)
+    vault: Path | None = None  # Path to the vault (required when using clipmd)
+    cache: Path | None = None  # Path to the cache file
     special_folders: SpecialFoldersConfig = Field(default_factory=SpecialFoldersConfig)
     frontmatter: FrontmatterConfig = Field(default_factory=FrontmatterConfig)
     dates: DatesConfig = Field(default_factory=DatesConfig)
@@ -197,9 +205,19 @@ class Config(BaseModel):
     filenames: FilenamesConfig = Field(default_factory=FilenamesConfig)
     content_cleaning: ContentCleaningConfig = Field(default_factory=ContentCleaningConfig)
     folders: FoldersConfig = Field(default_factory=FoldersConfig)
-    cache: CacheConfig = Field(default_factory=CacheConfig)
+    cache_config: CacheConfig = Field(default_factory=CacheConfig, alias="cache_settings")
     fetch: FetchConfig = Field(default_factory=FetchConfig)
     output: OutputConfig = Field(default_factory=OutputConfig)
+
+    def model_post_init(self, __context: object) -> None:
+        """Expand environment variables in vault and cache paths."""
+        del __context  # Unused, required by pydantic interface
+        if self.vault is not None:
+            vault_str = str(self.vault)
+            self.vault = Path(expand_env_vars(vault_str))
+        if self.cache is not None:
+            cache_str = str(self.cache)
+            self.cache = Path(expand_env_vars(cache_str))
 
 
 def get_xdg_config_home() -> Path:
@@ -211,173 +229,113 @@ def get_xdg_config_home() -> Path:
     return Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
 
 
-def find_config_file(config_path: Path | None = None) -> Path | None:
-    """Find the configuration file using XDG conventions.
+def get_config_file_path(config_path: Path | None = None) -> Path:
+    """Get the configuration file path.
 
-    Search order (first found wins):
-    1. --config PATH (command line override)
-    2. ./config.yaml (current directory)
-    3. ./.clipmd/config.yaml (project directory)
-    4. $XDG_CONFIG_HOME/clipmd/config.yaml (typically ~/.config/clipmd/config.yaml)
+    With the simplified config approach, there is a single canonical location:
+    $XDG_CONFIG_HOME/clipmd/config.yaml (typically ~/.config/clipmd/config.yaml)
 
     Args:
         config_path: Optional explicit config path from command line.
 
     Returns:
-        Path to config file if found, None otherwise.
+        Path to config file.
+
+    Raises:
+        ConfigError: If explicit config_path is provided but doesn't exist.
     """
     if config_path is not None:
         if config_path.exists():
             return config_path
         raise ConfigError(f"Config file not found: {config_path}")
 
-    # Check current directory
-    cwd_config = Path("config.yaml")
-    if cwd_config.exists():
-        return cwd_config
-
-    # Check .clipmd directory
-    clipmd_config = Path(".clipmd/config.yaml")
-    if clipmd_config.exists():
-        return clipmd_config
-
-    # Check XDG config home
-    xdg_config = get_xdg_config_home() / "clipmd" / "config.yaml"
-    if xdg_config.exists():
-        return xdg_config
-
-    return None
+    # Default to XDG config location
+    return get_xdg_config_home() / "clipmd" / "config.yaml"
 
 
 def load_config(config_path: Path | None = None) -> Config:
-    """Load configuration from file or return defaults.
+    """Load configuration from ~/.config/clipmd/config.yaml or return defaults.
 
     Args:
-        config_path: Optional explicit config path.
+        config_path: Optional explicit config path override.
 
     Returns:
         Config object with loaded or default values.
 
     Raises:
-        ConfigError: If config file exists but is invalid.
+        ConfigError: If config file exists but is invalid, or vault/cache are not configured.
     """
-    found_path = find_config_file(config_path)
+    config_file = get_config_file_path(config_path)
 
-    if found_path is None:
+    # If config file doesn't exist, return defaults
+    if not config_file.exists():
         return Config()
 
     try:
-        with found_path.open() as f:
+        with config_file.open() as f:
             data = yaml.safe_load(f)
     except yaml.YAMLError as e:
-        raise ConfigError(f"Invalid YAML in config file: {e}") from e
+        raise ConfigError(f"Invalid YAML in config file {config_file}: {e}") from e
     except OSError as e:
-        raise ConfigError(f"Could not read config file: {e}") from e
+        raise ConfigError(f"Could not read config file {config_file}: {e}") from e
 
     if data is None:
         return Config()
 
     try:
-        return Config.model_validate(data)
+        config = Config.model_validate(data)
+
+        # Validate that vault and cache are configured
+        if config.vault is None:
+            raise ConfigError(
+                f"Configuration file {config_file} must specify 'vault' path. "
+                f"Example:\n  vault: $HOME/Documents/Articles\n  cache: $HOME/.cache/clipmd/cache.json"
+            )
+        if config.cache is None:
+            raise ConfigError(
+                f"Configuration file {config_file} must specify 'cache' path. "
+                f"Example:\n  vault: $HOME/Documents/Articles\n  cache: $HOME/.cache/clipmd/cache.json"
+            )
+
+        return config
     except ValueError as e:
-        raise ConfigError(f"Invalid configuration: {e}") from e
+        raise ConfigError(f"Invalid configuration in {config_file}: {e}") from e
 
 
-def get_xdg_config_path() -> Path:
-    """Get the XDG config file path.
+def get_vault_root(config: Config) -> Path:
+    """Get the vault root directory from configuration.
 
-    Returns:
-        Path to the XDG config file (~/.config/clipmd/config.yaml).
-    """
-    return get_xdg_config_home() / "clipmd" / "config.yaml"
-
-
-def load_xdg_config() -> dict | None:
-    """Load the XDG config file if it exists.
-
-    Returns:
-        Parsed YAML data or None if file doesn't exist.
-    """
-    xdg_config = get_xdg_config_path()
-    if not xdg_config.exists():
-        return None
-
-    try:
-        with xdg_config.open() as f:
-            return yaml.safe_load(f) or {}
-    except (yaml.YAMLError, OSError):
-        return None
-
-
-def save_default_vault(vault_path: Path) -> None:
-    """Save the default vault path to XDG config.
-
-    Creates or updates the XDG config file with the default_vault setting.
-
-    Args:
-        vault_path: Absolute path to the vault directory.
-    """
-    xdg_config = get_xdg_config_path()
-    xdg_config.parent.mkdir(parents=True, exist_ok=True)
-
-    # Load existing config or create new
-    data = load_xdg_config() or {"version": 1}
-
-    # Update default_vault
-    data["default_vault"] = str(vault_path.resolve())
-
-    # Write back
-    with xdg_config.open("w") as f:
-        yaml.safe_dump(data, f, default_flow_style=False, sort_keys=False)
-
-
-def get_default_vault() -> Path | None:
-    """Get the default vault path from XDG config.
-
-    Returns:
-        Path to the default vault or None if not configured.
-    """
-    data = load_xdg_config()
-    if data and "default_vault" in data:
-        vault_path = Path(data["default_vault"])
-        if vault_path.exists() and vault_path.is_dir():
-            return vault_path
-    return None
-
-
-def resolve_vault_root(config: Config, vault_override: Path | None = None) -> Path:
-    """Resolve the effective vault root directory.
-
-    Priority:
-    1. Explicit vault override (from --vault CLI option)
-    2. Config's paths.root if it's absolute
-    3. Config's default_vault if set
-    4. Default vault from XDG config
-    5. Current working directory with relative paths.root
+    The vault path must be configured in ~/.config/clipmd/config.yaml.
+    Environment variables (e.g., $HOME) are expanded automatically.
 
     Args:
         config: Application configuration.
-        vault_override: Optional vault path override from CLI.
 
     Returns:
         Resolved absolute path to the vault root.
+
+    Raises:
+        ConfigError: If vault is not configured.
     """
-    # 1. Explicit override
-    if vault_override is not None:
-        return vault_override.resolve()
+    if config.vault is None:
+        raise ConfigError(
+            "Vault path not configured in ~/.config/clipmd/config.yaml.\n"
+            "Add:\n  vault: $HOME/Documents/Articles"
+        )
+    return config.vault.resolve()
 
-    # 2. Absolute paths.root
-    if config.paths.root.is_absolute():
-        return config.paths.root
 
-    # 3. Config's default_vault
-    if config.default_vault is not None and config.default_vault.exists():
-        return config.default_vault
+def validate_config_paths(config: Config) -> None:
+    """Validate that vault and cache are configured.
 
-    # 4. XDG default vault
-    xdg_vault = get_default_vault()
-    if xdg_vault is not None:
-        return xdg_vault
-
-    # 5. Current directory with relative root
-    return Path.cwd() / config.paths.root
+    Raises:
+        ConfigError: If vault or cache are not configured.
+    """
+    if config.vault is None:
+        raise ConfigError(
+            "Vault path not configured in config. Add:\n  vault: $HOME/Documents/Articles"
+        )
+    if config.cache is None:
+        raise ConfigError(
+            "Cache path not configured in config. Add:\n  cache: $HOME/.cache/clipmd/cache.json"
+        )

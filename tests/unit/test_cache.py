@@ -426,9 +426,9 @@ class TestFilterDuplicateUrls:
 
         config_file = tmp_path / "config.yaml"
         if cache_path is None:
-            config_file.write_text("version: 1\npaths:\n  root: .\n")
+            config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
         else:
-            config_file.write_text(f"version: 1\npaths:\n  root: .\n  cache: {cache_path}\n")
+            config_file.write_text(f"version: 1\nvault: .\ncache: {cache_path}\n")
         return load_config(config_file)
 
     def test_active_url_skipped_by_default(self, tmp_path: Path, monkeypatch) -> None:
@@ -496,7 +496,7 @@ class TestFilterDuplicateUrls:
         assert result.filtered_urls == []
 
     def test_absolute_cache_path_used_directly(self, tmp_path: Path, monkeypatch) -> None:
-        """Absolute paths.cache is used as-is, not joined to paths.root."""
+        """Absolute cache path is used as-is, not joined to vault."""
         monkeypatch.chdir(tmp_path)
         # Place cache in a separate directory to prove it's read at the absolute path
         cache_dir = tmp_path / "external_cache"

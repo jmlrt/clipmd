@@ -7,7 +7,6 @@ from pathlib import Path
 from textwrap import dedent
 from typing import TYPE_CHECKING
 
-from clipmd.config import save_default_vault
 from clipmd.core.discovery import discover_markdown_files
 
 if TYPE_CHECKING:
@@ -25,17 +24,25 @@ class InitResult:
 
 
 def get_minimal_config() -> str:
-    """Get minimal configuration content.
+    """Get minimal configuration content for ~/.config/clipmd/config.yaml.
 
     Returns:
         Minimal YAML configuration.
     """
     return dedent("""\
-        # clipmd minimal configuration
+        # clipmd configuration (~/.config/clipmd/config.yaml)
         version: 1
 
-        paths:
-          root: "."
+        # Path to your articles vault
+        vault: $HOME/Documents/Obsidian/Perso/Clippings
+
+        # Path to cache file
+        cache: $HOME/.cache/clipmd/cache.json
+
+        # Domain-to-folder mappings for automatic categorization
+        domain_rules:
+          github.com: Dev-Tools
+          arxiv.org: Science
         """)
 
 
@@ -221,49 +228,50 @@ def get_full_config() -> str:
 
 
 def initialize_vault(
+    vault_path: Path,
     config_path: Path,
-    minimal: bool,
-    force: bool,
-    set_default: bool,
+    minimal: bool = True,
+    force: bool = False,
 ) -> InitResult:
-    """Initialize clipmd vault with config and directories.
+    """Initialize clipmd vault with directories.
+
+    With the simplified config approach, the config file is always at
+    ~/.config/clipmd/config.yaml and must be created separately.
+    This function just creates the .clipmd directory structure.
 
     Args:
-        config_path: Path where config file should be created.
+        vault_path: Path to the vault directory.
+        config_path: Path where config file should be created (typically ~/.config/clipmd/config.yaml).
         minimal: If True, create minimal config; otherwise full config.
         force: If True, overwrite existing config.
-        set_default: If True, set this vault as default in XDG config.
 
     Returns:
         InitResult with paths and file count information.
     """
-    # Check if config already exists
+    # Create config file at the specified location
     if config_path.exists() and not force:
         raise FileExistsError(f"Config file already exists: {config_path}")
 
-    # Create .clipmd directory
-    clipmd_dir = Path(".clipmd")
-    clipmd_dir.mkdir(exist_ok=True)
+    # Ensure config directory exists
+    config_path.parent.mkdir(parents=True, exist_ok=True)
 
     # Write config file
     config_content = get_minimal_config() if minimal else get_full_config()
     config_path.write_text(config_content, encoding="utf-8")
 
+    # Create .clipmd directory in vault
+    clipmd_dir = vault_path / ".clipmd"
+    clipmd_dir.mkdir(parents=True, exist_ok=True)
+
     # Count existing markdown files (excluding hidden and ignored files)
     from clipmd.config import Config
 
     default_config = Config()
-    md_files = list(discover_markdown_files(Path("."), default_config))
-
-    # Save as default vault if requested
-    vault_path = None
-    if set_default:
-        vault_path = Path.cwd().resolve()
-        save_default_vault(vault_path)
+    md_files = list(discover_markdown_files(vault_path, default_config))
 
     return InitResult(
         config_path=config_path,
         clipmd_dir=clipmd_dir,
         markdown_file_count=len(md_files),
-        vault_path=vault_path,
+        vault_path=vault_path.resolve(),
     )

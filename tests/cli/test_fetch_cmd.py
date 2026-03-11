@@ -841,7 +841,7 @@ class TestCacheUpdate:
         update_cache_after_fetch(results, config)
 
         # Verify cache was updated
-        cache_path = config.paths.root / config.paths.cache
+        cache_path = config.cache
         cache = load_cache(cache_path)
         assert cache.has_url("https://example.com/article1")
         assert cache.has_url("https://example.com/article2")

@@ -130,7 +130,7 @@ def preprocess_file(
                 modified = True
 
     # Compute content hash
-    result.content_hash = hash_content(parsed.content, config.cache.hash_length)
+    result.content_hash = hash_content(parsed.content, config.cache_config.hash_length)
 
     # Check if filename needs date prefix
     filename = path.name

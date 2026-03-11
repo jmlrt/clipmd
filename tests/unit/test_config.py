@@ -15,32 +15,12 @@ from clipmd.config import (
     FoldersConfig,
     FrontmatterConfig,
     OutputConfig,
-    PathsConfig,
     SpecialFoldersConfig,
     UrlCleaningConfig,
-    find_config_file,
+    get_config_file_path,
     load_config,
 )
 from clipmd.exceptions import ConfigError
-
-
-class TestPathsConfig:
-    """Tests for PathsConfig."""
-
-    def test_defaults(self) -> None:
-        """Test default values."""
-        config = PathsConfig()
-        assert config.root == Path(".")
-        assert config.cache == Path(".clipmd/cache.json")
-
-    def test_custom_values(self) -> None:
-        """Test custom values."""
-        config = PathsConfig(
-            root=Path("/custom/path"),
-            cache=Path("custom/cache.json"),
-        )
-        assert config.root == Path("/custom/path")
-        assert config.cache == Path("custom/cache.json")
 
 
 class TestSpecialFoldersConfig:
@@ -152,91 +132,99 @@ class TestConfig:
         """Test full default configuration."""
         config = Config()
         assert config.version == 1
-        assert config.paths.root == Path(".")
+        assert config.vault is None  # Defaults to None
+        assert config.cache is None  # Defaults to None
 
-    def test_from_dict(self) -> None:
-        """Test creating config from dictionary."""
-        data = {
-            "version": 1,
-            "paths": {"root": "/custom/path"},
-        }
-        config = Config.model_validate(data)
-        assert config.paths.root == Path("/custom/path")
+    def test_cache_config_defaults(self) -> None:
+        """Test cache_config defaults."""
+        config = Config()
+        assert config.cache_config.hash_length == 16
+
+    def test_domain_rules_defaults(self) -> None:
+        """Test domain_rules defaults to empty dict."""
+        config = Config()
+        assert config.domain_rules == {}
 
 
-class TestFindConfigFile:
-    """Tests for find_config_file function."""
+class TestGetConfigFilePath:
+    """Tests for get_config_file_path function."""
 
     def test_explicit_path(self, tmp_path: Path) -> None:
-        """Test with explicit config path."""
+        """Test with explicit config path that exists."""
         config_file = tmp_path / "custom.yaml"
         config_file.write_text("version: 1\n")
-        result = find_config_file(config_file)
+        result = get_config_file_path(config_file)
         assert result == config_file
 
     def test_explicit_path_not_found(self, tmp_path: Path) -> None:
         """Test with non-existent explicit path."""
         config_file = tmp_path / "nonexistent.yaml"
         with pytest.raises(ConfigError, match="not found"):
-            find_config_file(config_file)
+            get_config_file_path(config_file)
 
-    def test_no_config_returns_none(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Test returns None when no config found."""
-        monkeypatch.chdir(tmp_path)
-        # Use tmp_path as XDG_CONFIG_HOME to avoid finding real config
-        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / ".config"))
-        result = find_config_file(None)
-        assert result is None
-
-    def test_finds_cwd_config(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Test finds config.yaml in current directory."""
-        monkeypatch.chdir(tmp_path)
-        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / ".config"))
-        config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\n")
-        result = find_config_file(None)
-        assert result is not None
-        assert result.resolve() == config_file.resolve()
-
-    def test_finds_clipmd_config(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Test finds .clipmd/config.yaml."""
-        monkeypatch.chdir(tmp_path)
-        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / ".config"))
-        clipmd_dir = tmp_path / ".clipmd"
-        clipmd_dir.mkdir()
-        config_file = clipmd_dir / "config.yaml"
-        config_file.write_text("version: 1\n")
-        result = find_config_file(None)
-        assert result is not None
-        assert result.resolve() == config_file.resolve()
+    def test_default_xdg_path(self) -> None:
+        """Test default returns XDG config path."""
+        result = get_config_file_path(None)
+        assert result.name == "config.yaml"
+        assert "clipmd" in str(result)
 
 
 class TestLoadConfig:
     """Tests for load_config function."""
 
-    def test_load_defaults_when_no_file(
+    def test_load_defaults_when_no_file(self, tmp_path: Path) -> None:
+        """Test loads defaults when config file doesn't exist."""
+        config_file = tmp_path / "nonexistent.yaml"
+        config = load_config(config_file)
+        assert config.version == 1
+        assert config.vault is None
+        assert config.cache is None
+
+    def test_load_with_vault_and_cache(self, tmp_path: Path) -> None:
+        """Test loading config with vault and cache paths."""
+        vault = tmp_path / "vault"
+        vault.mkdir()
+
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(f"""\
+version: 1
+vault: {vault}
+cache: {tmp_path}/cache.json
+""")
+        config = load_config(config_file)
+        assert config.vault == vault
+        assert config.cache == tmp_path / "cache.json"
+
+    def test_load_missing_vault_raises_error(self, tmp_path: Path) -> None:
+        """Test loading config without vault raises ConfigError."""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text("version: 1\n")
+        with pytest.raises(ConfigError, match="vault"):
+            load_config(config_file)
+
+    def test_load_missing_cache_raises_error(self, tmp_path: Path) -> None:
+        """Test loading config without cache raises ConfigError."""
+        vault = tmp_path / "vault"
+        vault.mkdir()
+
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(f"version: 1\nvault: {vault}\n")
+        with pytest.raises(ConfigError, match="cache"):
+            load_config(config_file)
+
+    def test_load_expands_environment_variables(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Test loads defaults when no config file exists."""
-        monkeypatch.chdir(tmp_path)
-        config = load_config()
-        assert config.version == 1
+        """Test that environment variables are expanded in vault and cache paths."""
+        vault = tmp_path / "vault"
+        vault.mkdir()
+        monkeypatch.setenv("TEST_VAULT", str(vault))
 
-    def test_load_from_file(self, tmp_path: Path, minimal_config_yaml: str) -> None:
-        """Test loading config from file."""
         config_file = tmp_path / "config.yaml"
-        config_file.write_text(minimal_config_yaml)
+        config_file.write_text("version: 1\nvault: $TEST_VAULT\ncache: $TEST_VAULT/cache.json\n")
         config = load_config(config_file)
-        assert config.version == 1
-        assert config.paths.root == Path(".")
-
-    def test_load_full_config(self, tmp_path: Path, sample_config_yaml: str) -> None:
-        """Test loading full config from file."""
-        config_file = tmp_path / "config.yaml"
-        config_file.write_text(sample_config_yaml)
-        config = load_config(config_file)
-        assert config.version == 1
-        assert "source" in config.frontmatter.source_url
+        assert config.vault == vault
+        assert config.cache == vault / "cache.json"
 
     def test_invalid_yaml(self, tmp_path: Path) -> None:
         """Test error on invalid YAML."""
@@ -245,142 +233,20 @@ class TestLoadConfig:
         with pytest.raises(ConfigError, match="Invalid YAML"):
             load_config(config_file)
 
-    def test_empty_file(self, tmp_path: Path) -> None:
-        """Test loading empty config file returns defaults."""
+    def test_load_with_domain_rules(self, tmp_path: Path) -> None:
+        """Test loading config with domain rules."""
+        vault = tmp_path / "vault"
+        vault.mkdir()
+
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("")
+        config_file.write_text(f"""\
+version: 1
+vault: {vault}
+cache: {tmp_path}/cache.json
+domain_rules:
+  github.com: Dev-Tools
+  arxiv.org: Science
+""")
         config = load_config(config_file)
-        assert config.version == 1
-
-
-class TestDefaultVault:
-    """Tests for default vault functionality."""
-
-    def test_save_and_load_default_vault(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """Test saving and loading default vault."""
-        from clipmd.config import get_default_vault, save_default_vault
-
-        # Use tmp_path as XDG_CONFIG_HOME
-        xdg_config = tmp_path / ".config"
-        monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg_config))
-
-        # Create a vault directory
-        vault_dir = tmp_path / "my-vault"
-        vault_dir.mkdir()
-
-        # Save the default vault
-        save_default_vault(vault_dir)
-
-        # Verify the XDG config was created
-        xdg_config_file = xdg_config / "clipmd" / "config.yaml"
-        assert xdg_config_file.exists()
-
-        # Load and verify
-        loaded_vault = get_default_vault()
-        assert loaded_vault is not None
-        assert loaded_vault.resolve() == vault_dir.resolve()
-
-    def test_get_default_vault_returns_none_when_not_set(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """Test get_default_vault returns None when not configured."""
-        from clipmd.config import get_default_vault
-
-        # Use tmp_path as XDG_CONFIG_HOME (no config file)
-        xdg_config = tmp_path / ".config"
-        monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg_config))
-
-        result = get_default_vault()
-        assert result is None
-
-    def test_get_default_vault_returns_none_for_nonexistent_path(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """Test get_default_vault returns None if vault path doesn't exist."""
-        from clipmd.config import get_default_vault, save_default_vault
-
-        # Use tmp_path as XDG_CONFIG_HOME
-        xdg_config = tmp_path / ".config"
-        monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg_config))
-
-        # Save a path that doesn't exist
-        nonexistent = tmp_path / "does-not-exist"
-        save_default_vault(nonexistent)
-
-        # Should return None because path doesn't exist
-        result = get_default_vault()
-        assert result is None
-
-    def test_resolve_vault_root_explicit_override(self, tmp_path: Path) -> None:
-        """Test resolve_vault_root with explicit override."""
-        from clipmd.config import resolve_vault_root
-
-        config = Config()
-        vault_dir = tmp_path / "override-vault"
-        vault_dir.mkdir()
-
-        result = resolve_vault_root(config, vault_dir)
-        assert result.resolve() == vault_dir.resolve()
-
-    def test_resolve_vault_root_absolute_paths_root(self, tmp_path: Path) -> None:
-        """Test resolve_vault_root uses absolute paths.root."""
-        from clipmd.config import resolve_vault_root
-
-        vault_dir = tmp_path / "absolute-vault"
-        vault_dir.mkdir()
-
-        config = Config()
-        config.paths.root = vault_dir
-
-        result = resolve_vault_root(config, None)
-        assert result == vault_dir
-
-    def test_resolve_vault_root_uses_default_vault(self, tmp_path: Path) -> None:
-        """Test resolve_vault_root uses default_vault from config."""
-        from clipmd.config import resolve_vault_root
-
-        vault_dir = tmp_path / "default-vault"
-        vault_dir.mkdir()
-
-        config = Config()
-        config.default_vault = vault_dir
-
-        result = resolve_vault_root(config, None)
-        assert result == vault_dir
-
-    def test_resolve_vault_root_uses_xdg_default(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """Test resolve_vault_root uses XDG default vault."""
-        from clipmd.config import resolve_vault_root, save_default_vault
-
-        # Use tmp_path as XDG_CONFIG_HOME
-        xdg_config = tmp_path / ".config"
-        monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg_config))
-
-        vault_dir = tmp_path / "xdg-vault"
-        vault_dir.mkdir()
-        save_default_vault(vault_dir)
-
-        config = Config()
-        result = resolve_vault_root(config, None)
-        assert result.resolve() == vault_dir.resolve()
-
-    def test_resolve_vault_root_falls_back_to_cwd(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """Test resolve_vault_root falls back to cwd with relative root."""
-        from clipmd.config import resolve_vault_root
-
-        # Use tmp_path as XDG_CONFIG_HOME (no default vault)
-        xdg_config = tmp_path / ".config"
-        monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg_config))
-        monkeypatch.chdir(tmp_path)
-
-        config = Config()
-        config.paths.root = Path(".")
-
-        result = resolve_vault_root(config, None)
-        assert result.resolve() == tmp_path.resolve()
+        assert config.domain_rules["github.com"] == "Dev-Tools"
+        assert config.domain_rules["arxiv.org"] == "Science"

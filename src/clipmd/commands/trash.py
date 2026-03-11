@@ -46,8 +46,10 @@ def trash_command(
         console.print("[red]Error:[/red] No configuration loaded")
         raise SystemExit(1)
 
+    assert config.vault is not None, "Vault path not configured"
+
     # Expand glob patterns
-    paths = trash.expand_glob_patterns(list(files), config.paths.root)
+    paths = trash.expand_glob_patterns(list(files), config.vault)
 
     if not paths:
         console.print("[yellow]No files match the specified patterns[/yellow]")

@@ -53,6 +53,8 @@ def preprocess_command(
         console.print("[red]Error:[/red] No configuration loaded")
         raise SystemExit(1)
 
+    assert config.vault is not None, "Vault path not configured"
+
     if dry_run:
         console.print("[yellow]Dry run - no files will be modified[/yellow]\n")
 
@@ -77,9 +79,9 @@ def preprocess_command(
             # Extract and normalize paths (may be relative from cache)
             paths = []
             for _, p in group:
-                # Normalize to absolute path under config root
+                # Normalize to absolute path under vault
                 if not p.is_absolute():
-                    p = config.paths.root / p
+                    p = config.vault / p
                 paths.append(p)
 
             winner = pick_winner(paths, config)
