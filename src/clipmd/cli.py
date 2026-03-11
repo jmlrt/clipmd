@@ -112,14 +112,12 @@ def register_commands() -> None:
     from clipmd.commands.duplicates import duplicates_command
     from clipmd.commands.extract import extract_command
     from clipmd.commands.fetch import fetch_command
-    from clipmd.commands.init import init_command
     from clipmd.commands.move import move_command
     from clipmd.commands.preprocess import preprocess_command
     from clipmd.commands.stats import stats_command
     from clipmd.commands.trash import trash_command
     from clipmd.commands.validate import validate_command
 
-    main.add_command(init_command)
     main.add_command(preprocess_command)
     main.add_command(extract_command)
     main.add_command(move_command)

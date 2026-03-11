@@ -27,15 +27,3 @@ class Context:
             self.config = load_config(config_path)
             self.config_path = config_path
         return self.config
-
-    def get_vault_root(self) -> Path:
-        """Get the resolved vault root directory.
-
-        Returns:
-            Resolved path to the vault root.
-        """
-        if self.config is None:
-            self.load_config()
-        assert self.config is not None
-        assert self.config.vault is not None  # Guaranteed by load_config
-        return self.config.vault.resolve()
