@@ -140,11 +140,6 @@ class TestConfig:
         config = Config()
         assert config.cache_config.hash_length == 16
 
-    def test_domain_rules_defaults(self) -> None:
-        """Test domain_rules defaults to empty dict."""
-        config = Config()
-        assert config.domain_rules == {}
-
 
 class TestGetConfigFilePath:
     """Tests for get_config_file_path function."""
@@ -233,21 +228,3 @@ cache: {tmp_path}/cache.json
         config_file.write_text("invalid: yaml: syntax:\n")
         with pytest.raises(ConfigError, match="Invalid YAML"):
             load_config(config_file)
-
-    def test_load_with_domain_rules(self, tmp_path: Path) -> None:
-        """Test loading config with domain rules."""
-        vault = tmp_path / "vault"
-        vault.mkdir()
-
-        config_file = tmp_path / "config.yaml"
-        config_file.write_text(f"""\
-version: 1
-vault: {vault}
-cache: {tmp_path}/cache.json
-domain_rules:
-  github.com: Dev-Tools
-  arxiv.org: Science
-""")
-        config = load_config(config_file)
-        assert config.domain_rules["github.com"] == "Dev-Tools"
-        assert config.domain_rules["arxiv.org"] == "Science"

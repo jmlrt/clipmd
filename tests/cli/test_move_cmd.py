@@ -260,7 +260,7 @@ class TestMoveWithCacheUpdate:
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n  cache: .clipmd/cache.json\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         # Create cache directory
         cache_dir = tmp_path / ".clipmd"
@@ -289,7 +289,7 @@ Content here.
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         article = tmp_path / "20240115-Article.md"
         article.write_text("""---
@@ -316,7 +316,7 @@ class TestMoveSourceDirHint:
     ) -> None:
         """Test that a hint is shown when missing files exist in a subdirectory."""
         monkeypatch.chdir(tmp_path)
-        (tmp_path / "config.yaml").write_text("version: 1\npaths:\n  root: .\n")
+        (tmp_path / "config.yaml").write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         # Article lives in Inbox/, but categorization uses bare filename
         inbox = tmp_path / "Inbox"
@@ -339,7 +339,7 @@ class TestMoveSourceDirHint:
     ) -> None:
         """Test that no hint is shown when --source-dir was explicitly passed."""
         monkeypatch.chdir(tmp_path)
-        (tmp_path / "config.yaml").write_text("version: 1\npaths:\n  root: .\n")
+        (tmp_path / "config.yaml").write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         inbox = tmp_path / "Inbox"
         inbox.mkdir()
@@ -362,7 +362,7 @@ class TestMoveSourceDirHint:
     ) -> None:
         """Test that no hint is shown when files don't exist anywhere in the vault."""
         monkeypatch.chdir(tmp_path)
-        (tmp_path / "config.yaml").write_text("version: 1\npaths:\n  root: .\n")
+        (tmp_path / "config.yaml").write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         cat_file = tmp_path / "categorization.txt"
         cat_file.write_text("1. Tech - nonexistent.md\n")
@@ -381,7 +381,7 @@ class TestMoveRelativeSourceDir:
     ) -> None:
         """Test that files from Inbox/ move to vault_root/Category/, not Inbox/Category/."""
         monkeypatch.chdir(tmp_path)
-        (tmp_path / "config.yaml").write_text("version: 1\npaths:\n  root: .\n")
+        (tmp_path / "config.yaml").write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         inbox = tmp_path / "Inbox"
         inbox.mkdir()

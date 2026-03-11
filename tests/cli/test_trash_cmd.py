@@ -25,7 +25,7 @@ class TestTrashCommand:
 
         # Create config
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         # Create article
         article = tmp_path / "20240115-Article.md"
@@ -53,7 +53,7 @@ Content here.
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         article = tmp_path / "20240115-Article.md"
         article.write_text("""---
@@ -80,7 +80,7 @@ Content.
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         # Create articles
         for i in range(3):
@@ -104,7 +104,7 @@ Content.
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         runner = CliRunner()
         result = runner.invoke(
@@ -123,7 +123,7 @@ class TestTrashGlobPatterns:
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         # Create articles
         for i in range(3):
@@ -152,7 +152,7 @@ class TestTrashGlobPatterns:
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         runner = CliRunner()
         result = runner.invoke(
@@ -167,7 +167,7 @@ class TestTrashGlobPatterns:
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         # Create a directory
         subdir = tmp_path / "subdir"
@@ -193,7 +193,7 @@ class TestTrashGlobPatterns:
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n  cache: .clipmd/cache.json\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         # Create cache directory
         cache_dir = tmp_path / ".clipmd"

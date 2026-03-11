@@ -29,7 +29,7 @@ class TestValidateCommand:
 
         # Create valid config
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         # Create .clipmd directory
         clipmd_dir = tmp_path / ".clipmd"
@@ -98,7 +98,7 @@ class TestValidateCommand:
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         clipmd_dir = tmp_path / ".clipmd"
         clipmd_dir.mkdir()
@@ -119,7 +119,7 @@ class TestValidateCommand:
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         clipmd_dir = tmp_path / ".clipmd"
         clipmd_dir.mkdir()
@@ -145,7 +145,7 @@ class TestValidateCommand:
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         clipmd_dir = tmp_path / ".clipmd"
         clipmd_dir.mkdir()
