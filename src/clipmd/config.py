@@ -229,7 +229,11 @@ def get_config_file_path(config_path: Path | None = None) -> Path:
 
 
 def load_config(config_path: Path | None = None) -> Config:
-    """Load configuration from ~/.config/clipmd/config.yaml or return defaults.
+    """Load configuration from $XDG_CONFIG_HOME/clipmd/config.yaml or return defaults.
+
+    The config file location follows XDG Base Directory Specification:
+    - Checks $XDG_CONFIG_HOME/clipmd/config.yaml (typically ~/.config/clipmd/config.yaml)
+    - Falls back to default ~/.config/clipmd/config.yaml if XDG_CONFIG_HOME is not set
 
     Args:
         config_path: Optional explicit config path override.

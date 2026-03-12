@@ -53,7 +53,7 @@ pass_context = click.make_pass_decorator(Context, ensure=True)
     "--config",
     "config_path",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
-    help="Use custom config file (default: ~/.config/clipmd/config.yaml)",
+    help="Use custom config file (default: $XDG_CONFIG_HOME/clipmd/config.yaml)",
 )
 @click.option(
     "--no-color",
@@ -74,7 +74,7 @@ def main(
     A CLI tool for saving, organizing, and managing markdown articles
     with YAML frontmatter. Designed to assist LLM-based workflows.
 
-    Configuration: ~/.config/clipmd/config.yaml
+    Configuration: $XDG_CONFIG_HOME/clipmd/config.yaml (typically ~/.config/clipmd/config.yaml)
     """
     ctx_obj.verbose = verbose
     ctx_obj.quiet = quiet
