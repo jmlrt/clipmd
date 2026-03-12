@@ -111,7 +111,7 @@ class TestFetchConfig:
         config = FetchConfig()
         assert config.timeout == 30
         assert config.max_concurrent == 5
-        assert config.readability is True
+        assert config.user_agent == "clipmd/0.1"
 
 
 class TestConfig:

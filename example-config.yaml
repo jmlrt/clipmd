@@ -126,10 +126,7 @@ url_cleaning:
     - ref
     - source
 
-  # URL unwrap patterns (optional, for link redirects)
-  unwrap_patterns: []
-
-# =============================================================================
+  # =============================================================================
 # FILENAME SANITIZATION
 # =============================================================================
 
@@ -180,38 +177,11 @@ cache_config:
 # =============================================================================
 
 fetch:
-  # HTTP request settings
+  # HTTP request timeout (seconds)
   timeout: 30
+
+  # User agent for HTTP requests
   user_agent: "clipmd/0.1"
 
   # Concurrency control for parallel fetching
   max_concurrent: 5
-
-  # Retry settings
-  max_retries: 3
-  retry_delay: 1
-
-  # Content extraction
-  extract_metadata: true
-  include_images: false
-
-  # Use readability mode (extract main content only)
-  readability: true
-
-  # Frontmatter template for fetched articles
-  frontmatter_template: |
-    title: "{title}"
-    source: "{url}"
-    author: "{author}"
-    published: "{published}"
-    clipped: "{clipped}"
-    description: "{description}"
-
-  # Filename template for fetched articles
-  filename_template: "{date}-{title}"
-
-  # Default values for missing metadata
-  defaults:
-    author: ""
-    published: ""
-    description: ""

@@ -77,7 +77,6 @@ class UrlCleaningConfig(BaseModel):
             "source",
         ]
     )
-    unwrap_patterns: list[dict[str, str | int]] = Field(default_factory=list)
 
 
 class FilenamesConfig(BaseModel):
@@ -126,28 +125,6 @@ class FetchConfig(BaseModel):
     timeout: int = 30
     user_agent: str = "clipmd/0.1"
     max_concurrent: int = 5
-    max_retries: int = 3
-    retry_delay: int = 1
-    extract_metadata: bool = True
-    include_images: bool = False
-    readability: bool = True
-    frontmatter_template: str = Field(
-        default="""title: "{title}"
-source: "{url}"
-author: "{author}"
-published: "{published}"
-clipped: "{clipped}"
-description: "{description}"
-"""
-    )
-    filename_template: str = "{date}-{title}"
-    defaults: dict[str, str] = Field(
-        default_factory=lambda: {
-            "author": "",
-            "published": "",
-            "description": "",
-        }
-    )
 
 
 class Config(BaseModel):
