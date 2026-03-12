@@ -153,32 +153,6 @@ clipmd report [--output PATH] [--format markdown|json]
 
 ---
 
-### domain rules system
-
-**Status**: ✅ IMPLEMENTED
-
-Automatic pre-categorization of articles based on domain → category rules.
-
-**Implemented**:
-- Config-based rules (dict in `config.yaml` with `domain_rules: {domain: folder}`)
-- Automatic rule application in `extract` command (no flag needed)
-- Rules displayed with → notation in extract output (e.g., `article.md → Dev-Tools`)
-- Works with markdown, JSON, and YAML output formats
-- Case-insensitive domain matching with port stripping
-
-**Example configuration**:
-```yaml
-domain_rules:
-  github.com: Dev-Tools
-  arxiv.org: Science
-  news.ycombinator.com: Tech
-```
-
-**Future enhancement (deferred)**:
-- `discover-rules` command to suggest rules from existing vault structure (Phase 2)
-
----
-
 ### cache management commands
 
 **Priority**: Low (Phase 2+)
