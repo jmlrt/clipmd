@@ -183,16 +183,20 @@ def extract_metadata(
 ) -> ExtractionResult:
     """Extract metadata from all articles in a directory.
 
+    Domain rules from config.domain_rules are automatically applied to suggest
+    folders for articles from known sources. If rules are not configured or
+    an article domain doesn't match any rule, suggested_folder will be None.
+
     Args:
         path: Directory to scan.
-        config: Application configuration.
+        config: Application configuration (includes domain rules if configured).
         max_chars: Maximum characters for description preview.
         include_content: Include content preview if no description.
         include_stats: Include word count and language detection.
         include_folders: Include list of existing folders.
 
     Returns:
-        ExtractionResult with all article metadata.
+        ExtractionResult with all article metadata (suggested_folder may be None).
     """
     result = ExtractionResult(
         generated=datetime.now().isoformat(),
@@ -277,7 +281,7 @@ def format_markdown(result: ExtractionResult, include_stats: bool = False) -> st
             if meta.domain:
                 parts.append(f"URL: {meta.domain}")
             if include_stats:
-                if meta.word_count:
+                if meta.word_count is not None:
                     parts.append(f"{meta.word_count:,} words")
                 if meta.language:
                     parts.append(meta.language)
