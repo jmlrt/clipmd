@@ -56,6 +56,8 @@ or add an `--exclude` glob pattern option.
 
 **Priority**: Medium
 
+**Needed for**: Unattended triage workflow (prevents garbage in LLM prompt)
+
 `clipmd extract` includes documentation files (e.g. `README.md`, `CLAUDE.md`)
 in its "Needs Categorization" list, polluting the LLM prompt.
 
@@ -172,25 +174,6 @@ clipmd report [--output PATH] [--format markdown|json]
 
 ---
 
-### domain rules system
-
-**Priority**: Medium (moved up from Low — significant token savings for unattended triage)
-
-Automatic pre-categorization of articles based on domain → category rules.
-
-**Components**:
-- YAML-based rules file (`.clipmd/domain-rules.yaml`)
-- `extract --apply-rules` flag to pre-categorize before LLM prompt
-- `discover-rules` command to suggest rules from existing vault structure
-
-**`discover-rules` behavior**:
-- Scan categorized articles, extract source domains
-- Identify domains that consistently appear in the same folder
-- Suggest high-confidence mappings; output in YAML format
-- Support `--min-articles`, `--min-confidence`, `--merge`, `--dry-run`
-
----
-
 ### cache management commands
 
 **Priority**: Low (Phase 2+)
@@ -224,6 +207,8 @@ clipmd urls [--output PATH] [--format markdown|json|csv|plain]
 ### extract: `--format json` and move: `--from-json`
 
 **Priority**: Low
+
+**Needed for**: Unattended triage workflow (eliminates filename-matching fragility)
 
 The current triage round-trip (extract → Claude categorizes → move) uses
 free-text formats in both directions:
