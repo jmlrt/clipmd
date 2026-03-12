@@ -64,15 +64,8 @@ def move_command(
     """
     cli_ctx: Context = ctx.find_object(Context)  # type: ignore[assignment]
     config = cli_ctx.config
-
-    if config is None:
-        console.print("[red]Error:[/red] No configuration loaded")
-        raise SystemExit(1)
-
-    # Ensure vault is configured
-    if config.vault is None:
-        console.print("[red]Error:[/red] Vault path not configured in ~/.config/clipmd/config.yaml")
-        raise SystemExit(1)
+    assert config is not None
+    assert config.vault is not None
 
     # Track whether --source-dir was explicitly passed
     source_dir_explicit = source_dir is not None
@@ -83,10 +76,6 @@ def move_command(
     elif source_dir_is_relative:
         # Normalize relative paths against vault
         source_dir = config.vault / source_dir
-
-    if source_dir is None:
-        console.print("[red]Error:[/red] Could not determine source directory")
-        raise SystemExit(1)
 
     # Validate that source directory exists and is a directory after normalization
     if not source_dir.exists():

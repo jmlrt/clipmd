@@ -52,18 +52,11 @@ def stats_command(
     """
     cli_ctx: Context = ctx.find_object(Context)  # type: ignore[assignment]
     config = cli_ctx.config
+    assert config is not None
 
-    if config is None:
-        console.print("[red]Error:[/red] No configuration loaded")
-        raise SystemExit(1)
-
-    if path is None and config.vault is None:
-        console.print("[red]Error:[/red] Vault path not configured in ~/.config/clipmd/config.yaml")
-        raise SystemExit(1)
-
-    # At this point, either path or config.vault is set
+    # Use provided path or fall back to vault root
     target_path = path or config.vault
-    assert target_path is not None  # Guaranteed by check above
+    assert target_path is not None
     folder_stats = stats.collect_folder_stats(target_path, config, include_special)
 
     if warnings_only:

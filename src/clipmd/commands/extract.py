@@ -71,10 +71,7 @@ def extract_command(
     """
     cli_ctx: Context = ctx.find_object(Context)  # type: ignore[assignment]
     config = cli_ctx.config
-
-    if config is None:
-        console.print("[red]Error:[/red] No configuration loaded")
-        raise SystemExit(1)
+    assert config is not None
 
     # Extract metadata
     result = extractor.extract_metadata(

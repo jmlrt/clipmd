@@ -108,19 +108,9 @@ def fetch_command(
     """
     cli_ctx: Context = ctx.find_object(Context)  # type: ignore[assignment]
     config = cli_ctx.config
-
-    if config is None:
-        console.print("[red]Error:[/red] No configuration loaded")
-        raise SystemExit(1)
-
-    if config.vault is None:
-        console.print("[red]Error:[/red] Vault path not configured in ~/.config/clipmd/config.yaml")
-        raise SystemExit(1)
-
-    # Validate cache is configured for fetch operations
-    if config.cache is None:
-        console.print("[red]Error:[/red] Cache path not configured in ~/.config/clipmd/config.yaml")
-        raise SystemExit(1)
+    assert config is not None
+    assert config.vault is not None
+    assert config.cache is not None
 
     # Determine output directory
     output_dir = output or config.vault
