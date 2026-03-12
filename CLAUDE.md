@@ -133,6 +133,33 @@ Prefer well-maintained, actively-developed libraries from PyPI over custom imple
 - `tests/integration/` - Test complete workflows (fetch → preprocess → extract → move)
 - Target coverage: ≥89%
 
+### Config Cleanup Verification Checklist
+
+When removing config options following KISS/YAGNI principles:
+
+1. **Code Usage**: Grep for actual usage (not just test assertions or config definitions)
+   ```bash
+   grep -r "\.option_name" src/ tests/  # Should find nothing if truly unused
+   ```
+
+2. **Documentation**: Search all markdown files for references
+   ```bash
+   grep -r "option_name" README.md CHANGELOG.md SPEC.md CLAUDE.md
+   ```
+
+3. **Update Artifacts**:
+   - Remove from `config.py` class definition
+   - Remove from `example-config.yaml`
+   - Remove from `SPEC.md` (if documented in spec)
+   - Update test assertions that check the field exists
+   - Update test imports if class is imported for testing
+
+4. **Validation**:
+   - Run `make test` to ensure no regressions
+   - Verify all tests pass before committing
+
+**Important**: Test assertions (e.g., `assert config.track_urls is True`) don't count as "usage"—they're checking that a field exists, not that the code uses its value.
+
 ### Architecture Reference
 
 For generic architectural patterns, see the **python-development** skill in Claude Code:

@@ -316,6 +316,32 @@ gathering feedback from user workflows.
 
 ---
 
+## Successfully Removed Config Options (PR #7)
+
+These options were removed entirely from the config system (not deferred)
+because they were defined but never used in the codebase:
+
+**From `FetchConfig`:**
+- extract_metadata
+- include_images
+- readability (feature still available via `--no-readability` CLI flag)
+- frontmatter_template
+- filename_template
+- max_retries
+- retry_delay
+- defaults
+
+**From `UrlCleaningConfig`:**
+- unwrap_patterns
+
+**From `CacheConfig`:**
+- track_urls
+- track_content_hash
+
+**Rationale**: Removed dead code following KISS principle. If these features are needed in the future, they can be re-added with proper implementation at that time.
+
+---
+
 ## Refactoring
 
 ### Consolidate formatting functions
