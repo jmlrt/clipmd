@@ -90,20 +90,11 @@ def main(
         setup_logging(verbose)
 
     # Load config (will be used by subcommands)
-    # Skip config loading for commands that don't need configuration,
-    # but always load if --config was explicitly provided
-    click_ctx = click.get_current_context()
-    commands_without_config = {"version", "validate"}
-    should_load_config = (
-        click_ctx.invoked_subcommand is not None
-        and click_ctx.invoked_subcommand not in commands_without_config
-    ) or config_path is not None
-    if should_load_config:
-        try:
-            ctx_obj.load_config(config_path)
-        except ClipmdError as e:
-            error_console.print(f"[red]Error:[/red] {e}")
-            sys.exit(e.exit_code)
+    try:
+        ctx_obj.load_config(config_path)
+    except ClipmdError as e:
+        error_console.print(f"[red]Error:[/red] {e}")
+        sys.exit(e.exit_code)
 
 
 @main.command()
