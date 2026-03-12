@@ -95,8 +95,9 @@ def main(
     click_ctx = click.get_current_context()
     commands_without_config = {"version", "validate"}
     should_load_config = (
-        click_ctx.invoked_subcommand not in commands_without_config or config_path is not None
-    )
+        click_ctx.invoked_subcommand is not None
+        and click_ctx.invoked_subcommand not in commands_without_config
+    ) or config_path is not None
     if should_load_config:
         try:
             ctx_obj.load_config(config_path)
