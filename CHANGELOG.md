@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Domain rules system for automatic article pre-categorization
+  - Configure in `config.yaml` with `domain_rules: {domain: folder}` mapping
+  - `extract` command automatically applies rules and displays suggestions with → notation
+  - Reduces LLM token usage by skipping categorization for known sources
 - `stats` command now accepts an optional `PATH` argument to scope statistics to a subdirectory (e.g., `clipmd stats Clippings/`)
 - `preprocess --auto-remove-dupes` flag to automatically trash duplicate files detected during preprocessing (no confirmation prompt)
 - `fetch --file --clear-after` flag to reset the URL file to empty after all URLs are successfully fetched

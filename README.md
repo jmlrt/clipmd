@@ -8,6 +8,7 @@ A CLI tool for saving, organizing, and managing markdown articles with YAML fron
 - 📥 **Fetch** web content and convert to markdown with frontmatter
 - 🧹 **Preprocess** articles (clean URLs, sanitize filenames, fix frontmatter)
 - 📊 **Extract** metadata in LLM-optimized format (95%+ token reduction)
+- 🤖 **Auto-categorize** known sources using domain rules (reduces LLM tokens)
 - 🗂️ **Move** files based on simple categorization lists
 - 🔍 **Detect** duplicates by URL or content hash
 - 📈 **Statistics** and folder health monitoring
@@ -149,6 +150,43 @@ AI-Tools, Science, Tech, Misc
    Title: Another Article
    Desc: Description preview...
 ```
+
+**Domain Rules (Automatic Categorization):**
+
+Pre-categorize articles from known sources by adding to `config.yaml`:
+
+```yaml
+domain_rules:
+  github.com: Dev-Tools
+  arxiv.org: Science
+  news.ycombinator.com: Tech
+```
+
+When domain rules are configured, `extract` automatically suggests folders for matching articles:
+
+```markdown
+# Articles Metadata
+# Total: 79 articles
+
+## Existing Folders
+AI-Tools, Science, Tech, Misc
+
+## Articles (79 articles)
+
+1. 20240115-GitHub-Repo.md → Dev-Tools
+   URL: github.com
+   Title: GitHub Repository Article
+
+2. 20240116-ArXiv-Paper.md → Science
+   URL: arxiv.org
+   Title: ArXiv Research Paper
+
+3. 20240117-Unknown-Source.md
+   URL: example.com
+   Title: Unknown Source (LLM must categorize)
+```
+
+This reduces LLM token usage by pre-categorizing familiar sources — the LLM only needs to categorize articles from unfamiliar domains.
 
 ### Move Files
 

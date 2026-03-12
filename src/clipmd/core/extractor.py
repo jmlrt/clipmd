@@ -19,6 +19,7 @@ from clipmd.core.frontmatter import (
     get_title,
     parse_frontmatter,
 )
+from clipmd.core.rules import match_domain
 from clipmd.core.sanitizer import extract_domain
 
 if TYPE_CHECKING:
@@ -41,6 +42,7 @@ class ArticleMetadata:
     word_count: int | None = None
     language: str | None = None
     error: str | None = None
+    suggested_folder: str | None = None
 
 
 @dataclass
@@ -181,16 +183,20 @@ def extract_metadata(
 ) -> ExtractionResult:
     """Extract metadata from all articles in a directory.
 
+    Domain rules from config.domain_rules are automatically applied to suggest
+    folders for articles from known sources. If rules are not configured or
+    an article domain doesn't match any rule, suggested_folder will be None.
+
     Args:
         path: Directory to scan.
-        config: Application configuration.
+        config: Application configuration (includes domain rules if configured).
         max_chars: Maximum characters for description preview.
         include_content: Include content preview if no description.
         include_stats: Include word count and language detection.
         include_folders: Include list of existing folders.
 
     Returns:
-        ExtractionResult with all article metadata.
+        ExtractionResult with all article metadata (suggested_folder may be None).
     """
     result = ExtractionResult(
         generated=datetime.now().isoformat(),
@@ -220,6 +226,10 @@ def extract_metadata(
         if metadata.error:
             result.errors.append((md_file, metadata.error))
             continue
+
+        # Apply domain rules from config
+        if metadata.domain:
+            metadata.suggested_folder = match_domain(metadata.domain, config.domain_rules)
 
         result.articles.append(metadata)
 
@@ -260,14 +270,18 @@ def format_markdown(result: ExtractionResult, include_stats: bool = False) -> st
             ]
         )
         for meta in result.articles:
-            lines.append(f"{meta.index}. {meta.filename}")
+            # Filename with optional suggested folder notation
+            filename_line = f"{meta.index}. {meta.filename}"
+            if meta.suggested_folder:
+                filename_line += f" → {meta.suggested_folder}"
+            lines.append(filename_line)
 
             # Build URL line with optional stats
             parts = []
             if meta.domain:
                 parts.append(f"URL: {meta.domain}")
             if include_stats:
-                if meta.word_count:
+                if meta.word_count is not None:
                     parts.append(f"{meta.word_count:,} words")
                 if meta.language:
                     parts.append(meta.language)
@@ -320,6 +334,7 @@ def format_json(result: ExtractionResult) -> str:
                     "published": m.published,
                     "word_count": m.word_count,
                     "language": m.language,
+                    "suggested_folder": m.suggested_folder,
                 }.items()
                 if v is not None
             }
@@ -360,6 +375,7 @@ def format_yaml_output(result: ExtractionResult) -> str:
                     "published": m.published,
                     "word_count": m.word_count,
                     "language": m.language,
+                    "suggested_folder": m.suggested_folder,
                 }.items()
                 if v is not None
             }
