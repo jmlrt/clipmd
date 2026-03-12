@@ -12,7 +12,7 @@ from clipmd.core.hasher import hash_content
 from clipmd.core.sanitizer import clean_url
 
 if TYPE_CHECKING:
-    from clipmd.config import CacheConfig, Config
+    from clipmd.config import Config
     from clipmd.core.fetcher import FetchResult
 
 
@@ -390,12 +390,12 @@ class Cache:
         return cache
 
 
-def load_cache(path: Path | None = None, _config: CacheConfig | None = None) -> Cache:
+def load_cache(path: Path | None = None) -> Cache:
     """Load cache from configured path.
 
     Args:
-        path: Explicit path to load from.
-        _config: Cache configuration (reserved for future use).
+        path: Explicit path to load from. If not provided, defaults to .clipmd/cache.json
+              (used mainly in tests; production code should pass the configured path).
 
     Returns:
         Loaded Cache object.
@@ -430,9 +430,7 @@ def filter_duplicate_urls(
     Returns:
         FilterResult with filtered and skipped URLs.
     """
-    cache_path = config.paths.cache
-    if not cache_path.is_absolute():
-        cache_path = config.paths.root / cache_path
+    cache_path = config.cache
     cache = load_cache(cache_path)
 
     filtered_urls = []
@@ -463,9 +461,7 @@ def update_cache_after_fetch(
         results: List of fetch results.
         config: Application configuration.
     """
-    cache_path = config.paths.cache
-    if not cache_path.is_absolute():
-        cache_path = config.paths.root / cache_path
+    cache_path = config.cache
     cache = load_cache(cache_path)
 
     for result in results:

@@ -47,11 +47,8 @@ def preprocess_command(
     Cleans URLs, sanitizes filenames, adds date prefixes, and fixes frontmatter.
     """
     cli_ctx: Context = ctx.find_object(Context)  # type: ignore[assignment]
-    config = cli_ctx.config
-
-    if config is None:
-        console.print("[red]Error:[/red] No configuration loaded")
-        raise SystemExit(1)
+    config = cli_ctx.require_config()
+    vault = cli_ctx.require_vault()
 
     if dry_run:
         console.print("[yellow]Dry run - no files will be modified[/yellow]\n")
@@ -77,9 +74,9 @@ def preprocess_command(
             # Extract and normalize paths (may be relative from cache)
             paths = []
             for _, p in group:
-                # Normalize to absolute path under config root
+                # Normalize to absolute path under vault
                 if not p.is_absolute():
-                    p = config.paths.root / p
+                    p = vault / p
                 paths.append(p)
 
             winner = pick_winner(paths, config)

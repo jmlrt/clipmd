@@ -14,7 +14,29 @@ if TYPE_CHECKING:
 @pytest.fixture(autouse=True)
 def isolate_xdg_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Isolate XDG_CONFIG_HOME for all tests to avoid interference from real config."""
-    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / ".xdg-config"))
+    xdg_home = tmp_path / ".xdg-config"
+    xdg_home.mkdir(exist_ok=True)
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg_home))
+
+    # Create a minimal config in the isolated XDG location for all tests.
+    # Tests that need a different setup can modify or replace this config.
+    config_dir = xdg_home / "clipmd"
+    config_dir.mkdir(exist_ok=True)
+    config_file = config_dir / "config.yaml"
+    config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
+
+
+@pytest.fixture
+def default_config() -> Path:
+    """Create a default config in the isolated XDG location for tests that need it."""
+    import os
+
+    xdg_home = Path(os.environ["XDG_CONFIG_HOME"])
+    config_dir = xdg_home / "clipmd"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    config_file = config_dir / "config.yaml"
+    config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
+    return config_file
 
 
 @pytest.fixture
@@ -40,9 +62,8 @@ def sample_config_yaml() -> str:
     """Return a sample config.yaml content."""
     return """version: 1
 
-paths:
-  root: "."
-  cache: ".clipmd/cache.json"
+vault: "."
+cache: ".clipmd/cache.json"
 
 special_folders:
   exclude_patterns:
@@ -72,9 +93,10 @@ dates:
 
 
 @pytest.fixture
-def minimal_config_yaml() -> str:
+def minimal_config_yaml(tmp_path: Path) -> str:
     """Return a minimal config.yaml content."""
-    return """version: 1
-paths:
-  root: "."
+    cache_file = tmp_path / ".cache" / "clipmd" / "cache.json"
+    return f"""version: 1
+vault: "."
+cache: "{cache_file}"
 """

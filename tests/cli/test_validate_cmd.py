@@ -29,7 +29,7 @@ class TestValidateCommand:
 
         # Create valid config
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         # Create .clipmd directory
         clipmd_dir = tmp_path / ".clipmd"
@@ -46,18 +46,29 @@ class TestValidateCommand:
     def test_missing_config(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test validation with missing config."""
         monkeypatch.chdir(tmp_path)
+        # Create an isolated XDG config home with no config file
+        xdg_home = tmp_path / ".xdg-config-missing"
+        xdg_home.mkdir()
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg_home))
 
         runner = CliRunner()
         result = runner.invoke(main, ["validate"])
         assert result.exit_code == 1
-        assert "not found" in result.output.lower()
+        # When no config is found, error message indicates config file not found
+        assert "config" in result.output.lower() and "found" in result.output.lower()
 
     def test_invalid_config_syntax(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test validation with invalid config syntax."""
         monkeypatch.chdir(tmp_path)
 
-        config_file = tmp_path / "config.yaml"
+        # Create an isolated XDG config home with invalid config
+        xdg_home = tmp_path / ".xdg-config-invalid"
+        xdg_home.mkdir()
+        config_dir = xdg_home / "clipmd"
+        config_dir.mkdir()
+        config_file = config_dir / "config.yaml"
         config_file.write_text("invalid: yaml: content: [broken")
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg_home))
 
         runner = CliRunner()
         result = runner.invoke(main, ["validate"])
@@ -68,8 +79,14 @@ class TestValidateCommand:
         """Test validation with missing root path."""
         monkeypatch.chdir(tmp_path)
 
-        config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: /nonexistent/path\n")
+        # Create an isolated XDG config home with invalid vault path
+        xdg_home = tmp_path / ".xdg-config-missing-root"
+        xdg_home.mkdir()
+        config_dir = xdg_home / "clipmd"
+        config_dir.mkdir()
+        config_file = config_dir / "config.yaml"
+        config_file.write_text("version: 1\nvault: /nonexistent/path\ncache: .clipmd/cache.json\n")
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg_home))
 
         runner = CliRunner()
         result = runner.invoke(main, ["validate"])
@@ -81,7 +98,7 @@ class TestValidateCommand:
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         clipmd_dir = tmp_path / ".clipmd"
         clipmd_dir.mkdir()
@@ -102,7 +119,7 @@ class TestValidateCommand:
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         clipmd_dir = tmp_path / ".clipmd"
         clipmd_dir.mkdir()
@@ -128,7 +145,7 @@ class TestValidateCommand:
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         clipmd_dir = tmp_path / ".clipmd"
         clipmd_dir.mkdir()
@@ -139,13 +156,18 @@ class TestValidateCommand:
         assert "No markdown files" in result.output
 
     def test_fix_option(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Test --fix option suggests init command."""
+        """Test --fix option when config is missing."""
         monkeypatch.chdir(tmp_path)
+        # Create isolated XDG with no config file
+        xdg_home = tmp_path / ".xdg-config-fix"
+        xdg_home.mkdir()
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg_home))
 
         runner = CliRunner()
         result = runner.invoke(main, ["validate", "--fix"])
         assert result.exit_code == 1
-        assert "init" in result.output
+        # When config is missing, we get a vault path error
+        assert "vault" in result.output.lower() or "config" in result.output.lower()
 
 
 class TestValidationFunctions:
@@ -206,6 +228,10 @@ class TestValidationFunctions:
         from clipmd.core.validator import validate_config_exists
 
         monkeypatch.chdir(tmp_path)
+        # Create an isolated XDG config home with no config file
+        xdg_home = tmp_path / ".xdg-config-not-found"
+        xdg_home.mkdir()
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg_home))
         # When called with None and no config exists, it should return False
         result = validate_config_exists(None)
         assert result.passed is False
@@ -216,7 +242,7 @@ class TestValidationFunctions:
         from clipmd.core.validator import validate_config_syntax
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         result = validate_config_syntax(config_file)
         assert result.passed is True
@@ -238,7 +264,7 @@ class TestValidationFunctions:
         from clipmd.core.validator import validate_root_exists
 
         config = Config()
-        config.paths.root = tmp_path
+        config.vault = tmp_path
 
         result = validate_root_exists(None, config)
         assert result.passed is True
@@ -250,7 +276,7 @@ class TestValidationFunctions:
         from clipmd.core.validator import validate_root_exists
 
         config = Config()
-        config.paths.root = tmp_path / "nonexistent"
+        config.vault = tmp_path / "nonexistent"
 
         result = validate_root_exists(None, config)
         assert result.passed is False
@@ -262,8 +288,8 @@ class TestValidationFunctions:
         from clipmd.core.validator import validate_cache_directory
 
         config = Config()
-        config.paths.root = tmp_path
-        config.paths.cache = Path(".clipmd/cache.json")
+        config.vault = tmp_path
+        config.cache = tmp_path / ".clipmd" / "cache.json"
 
         # Create the .clipmd directory
         clipmd_dir = tmp_path / ".clipmd"
@@ -278,9 +304,9 @@ class TestValidationFunctions:
         from clipmd.core.validator import validate_cache_directory
 
         config = Config()
-        config.paths.root = tmp_path
+        config.vault = tmp_path
         # Point to a cache location in a non-existent parent
-        config.paths.cache = "nonexistent/parent/cache.json"
+        config.cache = tmp_path / "nonexistent" / "parent" / "cache.json"
 
         result = validate_cache_directory(None, config)
         assert result.passed is False
@@ -291,7 +317,7 @@ class TestValidationFunctions:
         from clipmd.core.validator import validate_markdown_files
 
         config = Config()
-        config.paths.root = tmp_path
+        config.vault = tmp_path
 
         result = validate_markdown_files(None, config)
         assert result.passed is True
@@ -307,7 +333,7 @@ class TestValidationFunctions:
             (tmp_path / f"article{i}.md").write_text("# Test")
 
         config = Config()
-        config.paths.root = tmp_path
+        config.vault = tmp_path
 
         result = validate_markdown_files(None, config)
         assert result.passed is True
@@ -319,13 +345,14 @@ class TestValidationFunctions:
         from clipmd.core.validator import run_validation
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         clipmd_dir = tmp_path / ".clipmd"
         clipmd_dir.mkdir()
 
         config = Config()
-        config.paths.root = tmp_path
+        config.vault = tmp_path
+        config.cache = tmp_path / ".clipmd" / "cache.json"
 
         report = run_validation(config_file, config)
         assert report.passed is True
@@ -338,6 +365,10 @@ class TestValidationFunctions:
         from clipmd.core.validator import run_validation
 
         monkeypatch.chdir(tmp_path)
+        # Create isolated XDG with no config file
+        xdg_home = tmp_path / ".xdg-config-missing-val"
+        xdg_home.mkdir()
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg_home))
         report = run_validation(None, None)
         assert report.passed is False
         assert len(report.failures) > 0
@@ -361,8 +392,14 @@ class TestValidationFunctions:
         from clipmd.core.validator import validate_root_exists
 
         monkeypatch.chdir(tmp_path)
-        config_file = tmp_path / "config.yaml"
+        # Create isolated XDG with invalid config
+        xdg_home = tmp_path / ".xdg-config-load-err"
+        xdg_home.mkdir()
+        config_dir = xdg_home / "clipmd"
+        config_dir.mkdir()
+        config_file = config_dir / "config.yaml"
         config_file.write_text("invalid: yaml: [broken")
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg_home))
 
         result = validate_root_exists(config_file)
         assert result.passed is False
@@ -374,14 +411,14 @@ class TestValidationFunctions:
         from clipmd.core.validator import validate_cache_directory
 
         config = Config()
-        config.paths.root = tmp_path
+        config.vault = tmp_path
 
         # Create a directory and make it read-only
         clipmd_dir = tmp_path / ".clipmd"
         clipmd_dir.mkdir()
         clipmd_dir.chmod(0o444)  # Read-only
 
-        config.paths.cache = Path(".clipmd/cache.json")
+        config.cache = tmp_path / ".clipmd" / "cache.json"
 
         try:
             result = validate_cache_directory(None, config)
@@ -398,13 +435,13 @@ class TestValidationFunctions:
         from clipmd.core.validator import validate_cache_directory
 
         config = Config()
-        config.paths.root = tmp_path
+        config.vault = tmp_path
 
         # Create a file where we expect a directory
         file_path = tmp_path / ".clipmd"
         file_path.write_text("not a directory")
 
-        config.paths.cache = Path(".clipmd/cache.json")
+        config.cache = tmp_path / ".clipmd" / "cache.json"
 
         result = validate_cache_directory(None, config)
         assert result.passed is False
@@ -416,14 +453,14 @@ class TestValidationFunctions:
         from clipmd.core.validator import validate_cache_directory
 
         config = Config()
-        config.paths.root = tmp_path
+        config.vault = tmp_path
 
         # Create parent directory but not the cache directory
         clipmd_dir = tmp_path / ".clipmd"
         clipmd_dir.mkdir()
 
         # Point to a non-existent nested cache location within .clipmd
-        config.paths.cache = Path(".clipmd/subdir/cache.json")
+        config.cache = tmp_path / ".clipmd" / "subdir" / "cache.json"
 
         result = validate_cache_directory(None, config)
         assert result.passed is True
@@ -437,10 +474,10 @@ class TestValidationFunctions:
         from clipmd.core.validator import validate_cache_directory
 
         config = Config()
-        config.paths.root = tmp_path
+        config.vault = tmp_path
 
         # Point to a cache location in a completely non-existent parent
-        config.paths.cache = Path("nonexistent/parent/subdir/cache.json")
+        config.cache = tmp_path / "nonexistent" / "parent" / "subdir" / "cache.json"
 
         result = validate_cache_directory(None, config)
         assert result.passed is False
@@ -453,8 +490,14 @@ class TestValidationFunctions:
         from clipmd.core.validator import validate_cache_directory
 
         monkeypatch.chdir(tmp_path)
-        config_file = tmp_path / "config.yaml"
+        # Create isolated XDG with invalid config
+        xdg_home = tmp_path / ".xdg-config-cache-err"
+        xdg_home.mkdir()
+        config_dir = xdg_home / "clipmd"
+        config_dir.mkdir()
+        config_file = config_dir / "config.yaml"
         config_file.write_text("invalid: yaml: [broken")
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg_home))
 
         result = validate_cache_directory(config_file)
         assert result.passed is False
@@ -467,8 +510,14 @@ class TestValidationFunctions:
         from clipmd.core.validator import validate_markdown_files
 
         monkeypatch.chdir(tmp_path)
-        config_file = tmp_path / "config.yaml"
+        # Create isolated XDG with invalid config
+        xdg_home = tmp_path / ".xdg-config-md-err"
+        xdg_home.mkdir()
+        config_dir = xdg_home / "clipmd"
+        config_dir.mkdir()
+        config_file = config_dir / "config.yaml"
         config_file.write_text("invalid: yaml: [broken")
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg_home))
 
         result = validate_markdown_files(config_file)
         assert result.passed is False
@@ -480,9 +529,14 @@ class TestValidationFunctions:
         """Test validate command when context object is not available."""
         monkeypatch.chdir(tmp_path)
 
-        # Create minimal valid setup
-        config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        # Create minimal valid setup in isolated XDG
+        xdg_home = tmp_path / ".xdg-config-ctx"
+        xdg_home.mkdir()
+        config_dir = xdg_home / "clipmd"
+        config_dir.mkdir()
+        config_file = config_dir / "config.yaml"
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg_home))
 
         clipmd_dir = tmp_path / ".clipmd"
         clipmd_dir.mkdir()
@@ -497,8 +551,14 @@ class TestValidationFunctions:
         """Test validate command displays warnings correctly."""
         monkeypatch.chdir(tmp_path)
 
-        config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        # Create isolated XDG config
+        xdg_home = tmp_path / ".xdg-config-warn"
+        xdg_home.mkdir()
+        config_dir = xdg_home / "clipmd"
+        config_dir.mkdir()
+        config_file = config_dir / "config.yaml"
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg_home))
 
         clipmd_dir = tmp_path / ".clipmd"
         clipmd_dir.mkdir()
@@ -514,8 +574,14 @@ class TestValidationFunctions:
         """Test that validate command runs all checks."""
         monkeypatch.chdir(tmp_path)
 
-        config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        # Create isolated XDG config
+        xdg_home = tmp_path / ".xdg-config-checks"
+        xdg_home.mkdir()
+        config_dir = xdg_home / "clipmd"
+        config_dir.mkdir()
+        config_file = config_dir / "config.yaml"
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg_home))
 
         clipmd_dir = tmp_path / ".clipmd"
         clipmd_dir.mkdir()
@@ -530,7 +596,7 @@ class TestValidationFunctions:
         output_lower = result.output.lower()
         assert "config file" in output_lower
         assert "syntax" in output_lower
-        assert "root path" in output_lower
+        assert "vault path" in output_lower
 
     def test_run_validation_stops_at_missing_config(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -539,6 +605,10 @@ class TestValidationFunctions:
         from clipmd.core.validator import run_validation
 
         monkeypatch.chdir(tmp_path)
+        # Create isolated XDG with no config file
+        xdg_home = tmp_path / ".xdg-config-stops"
+        xdg_home.mkdir()
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg_home))
         report = run_validation(None, None)
         # Should only have the config existence check
         assert len(report.checks) == 1
@@ -551,8 +621,14 @@ class TestValidationFunctions:
         from clipmd.core.validator import run_validation
 
         monkeypatch.chdir(tmp_path)
-        config_file = tmp_path / "config.yaml"
+        # Create isolated XDG with invalid config
+        xdg_home = tmp_path / ".xdg-config-syntax"
+        xdg_home.mkdir()
+        config_dir = xdg_home / "clipmd"
+        config_dir.mkdir()
+        config_file = config_dir / "config.yaml"
         config_file.write_text("invalid: yaml: [broken")
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg_home))
 
         report = run_validation(config_file)
         # Should have config exists check and syntax check, no others

@@ -53,13 +53,7 @@ pass_context = click.make_pass_decorator(Context, ensure=True)
     "--config",
     "config_path",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
-    help="Use custom config file",
-)
-@click.option(
-    "--vault",
-    "vault_path",
-    type=click.Path(exists=True, file_okay=False, path_type=Path),
-    help="Use specific vault directory (overrides default)",
+    help="Use custom config file (default: $XDG_CONFIG_HOME/clipmd/config.yaml)",
 )
 @click.option(
     "--no-color",
@@ -69,22 +63,22 @@ pass_context = click.make_pass_decorator(Context, ensure=True)
 @click.version_option(version=__version__, prog_name="clipmd")
 @pass_context
 def main(
-    ctx: Context,
+    ctx_obj: Context,
     verbose: int,
     quiet: bool,
     config_path: Path | None,
-    vault_path: Path | None,
     no_color: bool,
 ) -> None:
     """clipmd - Clip, organize, and manage markdown articles.
 
     A CLI tool for saving, organizing, and managing markdown articles
     with YAML frontmatter. Designed to assist LLM-based workflows.
+
+    Configuration: $XDG_CONFIG_HOME/clipmd/config.yaml (typically ~/.config/clipmd/config.yaml)
     """
-    ctx.verbose = verbose
-    ctx.quiet = quiet
-    ctx.no_color = no_color
-    ctx.vault_override = vault_path
+    ctx_obj.verbose = verbose
+    ctx_obj.quiet = quiet
+    ctx_obj.no_color = no_color
 
     # Configure console colors
     if no_color:
@@ -97,10 +91,7 @@ def main(
 
     # Load config (will be used by subcommands)
     try:
-        ctx.load_config(config_path)
-        # Update paths.root to the resolved vault root
-        if ctx.config is not None:
-            ctx.config.paths.root = ctx.get_vault_root()
+        ctx_obj.load_config(config_path)
     except ClipmdError as e:
         error_console.print(f"[red]Error:[/red] {e}")
         sys.exit(e.exit_code)
@@ -118,14 +109,12 @@ def register_commands() -> None:
     from clipmd.commands.duplicates import duplicates_command
     from clipmd.commands.extract import extract_command
     from clipmd.commands.fetch import fetch_command
-    from clipmd.commands.init import init_command
     from clipmd.commands.move import move_command
     from clipmd.commands.preprocess import preprocess_command
     from clipmd.commands.stats import stats_command
     from clipmd.commands.trash import trash_command
     from clipmd.commands.validate import validate_command
 
-    main.add_command(init_command)
     main.add_command(preprocess_command)
     main.add_command(extract_command)
     main.add_command(move_command)

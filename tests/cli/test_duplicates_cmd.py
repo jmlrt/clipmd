@@ -28,7 +28,7 @@ class TestDuplicatesCommand:
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         # Create unique articles
         for i in range(3):
@@ -46,7 +46,7 @@ class TestDuplicatesCommand:
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         # Create articles with same URL
         same_url = "https://example.com/article"
@@ -69,7 +69,7 @@ class TestDuplicatesCommand:
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         # Create articles with same content
         same_content = "Identical content here."
@@ -88,7 +88,7 @@ class TestDuplicatesCommand:
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         # Create folders
         folder1 = tmp_path / "Tech"
@@ -111,7 +111,7 @@ class TestDuplicatesCommand:
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         # Create duplicates
         same_url = "https://example.com/article"
@@ -134,7 +134,7 @@ class TestDuplicatesCommand:
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         output_file = tmp_path / "duplicates.md"
 
@@ -149,7 +149,7 @@ class TestDuplicatesCommand:
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         # Create articles
         (tmp_path / "article1.md").write_text(
@@ -171,7 +171,7 @@ class TestDuplicatesCommand:
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         # Create visible and hidden duplicates
         same_url = "https://example.com/article"

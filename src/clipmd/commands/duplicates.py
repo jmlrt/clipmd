@@ -56,13 +56,8 @@ def duplicates_command(
     By default, searches by URL. Use flags to enable other detection methods.
     """
     cli_ctx: Context = ctx.find_object(Context)  # type: ignore[assignment]
-    config = cli_ctx.config
-
-    if config is None:
-        console.print("[red]Error:[/red] No configuration loaded")
-        raise SystemExit(1)
-
-    root_dir = config.paths.root
+    config = cli_ctx.require_config()
+    root_dir = cli_ctx.require_vault()
 
     # Default to by-url if no method specified
     if not by_url and not by_hash and not by_filename:

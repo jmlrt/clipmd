@@ -25,11 +25,15 @@ pip install clipmd[lang]
 
 ## Quick Start
 
-```bash
-# Initialize in your articles directory
-cd ~/Documents/Articles
-clipmd init
+**1. Create config file** (`~/.config/clipmd/config.yaml`):
+```yaml
+version: 1
+vault: $HOME/Documents/Articles
+cache: $HOME/.cache/clipmd/cache.json
+```
 
+**2. Use clipmd:**
+```bash
 # Fetch articles from URLs
 clipmd fetch "https://example.com/article"
 clipmd fetch -f urls.txt  # Or from file
@@ -206,61 +210,27 @@ clipmd validate
 
 ## Configuration
 
-Configuration is searched in this order:
-1. `./config.yaml` (current directory)
-2. `./.clipmd/config.yaml` (project directory)
-3. `~/.config/clipmd/config.yaml` (user-wide)
+Configuration is stored at: `~/.config/clipmd/config.yaml` (XDG-compliant)
 
-### Minimal Config
+### Minimal Setup
 
-```yaml
+Create the file once and clipmd uses it for all operations:
+```bash
+mkdir -p ~/.config/clipmd
+cat > ~/.config/clipmd/config.yaml << 'EOF'
 version: 1
-paths:
-  root: "."
+vault: $HOME/Documents/Articles
+cache: $HOME/.cache/clipmd/cache.json
+EOF
 ```
 
-### Example Config
+Environment variables like `$HOME` and `$XDG_CACHE_HOME` are expanded automatically.
 
-```yaml
-version: 1
+### Full Configuration
 
-paths:
-  root: "."
-  cache: ".clipmd/cache.json"
+Copy [`example-config.yaml`](example-config.yaml) and customize for your needs. It includes all available options with detailed comments.
 
-frontmatter:
-  source_url:
-    - source
-    - url
-    - original_url
-  title:
-    - title
-    - name
-
-dates:
-  output_format: "%Y%m%d"
-  extract_from_content: true
-
-url_cleaning:
-  remove_params:
-    - utm_source
-    - utm_medium
-    - fbclid
-    - gclid
-
-filenames:
-  replacements:
-    " ": "-"
-    "_": "-"
-  max_length: 100
-  collapse_dashes: true
-
-folders:
-  warn_below: 10
-  warn_above: 45
-```
-
-See [SPEC.md](SPEC.md) for full configuration reference.
+See [SPEC.md](SPEC.md) for complete configuration reference.
 
 ## Example Workflow
 

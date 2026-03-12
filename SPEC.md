@@ -278,13 +278,6 @@ url_cleaning:
     - ref
     - source
 
-  # URL patterns to unwrap (e.g., redirect wrappers)
-  unwrap_patterns:
-    - pattern: "^https?://.*?[?&]url=(.+)$"
-      extract: 1
-    - pattern: "^https?://.*?[?&]u=(.+)$"
-      extract: 1
-
 # =============================================================================
 # FILENAME SANITIZATION
 # =============================================================================
@@ -350,14 +343,7 @@ folders:
 # =============================================================================
 # CACHE SETTINGS
 # =============================================================================
-cache:
-  # What to track
-  track_urls: true
-  track_content_hash: true
-
-  # Hash algorithm (md5, sha1, sha256)
-  hash_algorithm: "sha256"
-
+cache_config:
   # Truncate hash to N characters (null for full hash)
   hash_length: 16
 
@@ -365,40 +351,14 @@ cache:
 # FETCH SETTINGS
 # =============================================================================
 fetch:
-  # Request settings
-  timeout: 30                    # Timeout in seconds
-  user_agent: "clipmd/0.1"        # User-Agent header
-  max_concurrent: 5              # Max parallel fetches (async)
+  # HTTP request timeout (seconds)
+  timeout: 30
 
-  # Retry settings
-  max_retries: 3
-  retry_delay: 1                 # Seconds between retries
+  # User agent for HTTP requests
+  user_agent: "clipmd/0.1"
 
-  # Content extraction
-  extract_metadata: true         # Try to extract title, author, date
-  include_images: false          # Download and embed images (future)
-
-  # Readability mode - extract main content only
-  readability: true
-
-  # Frontmatter template (uses extracted or default values)
-  frontmatter_template: |
-    title: "{title}"
-    source: "{url}"
-    author: "{author}"
-    published: "{published}"
-    clipped: "{clipped}"
-    description: "{description}"
-
-  # Filename template
-  # Available variables: {date}, {title}, {domain}
-  filename_template: "{date}-{title}"
-
-  # Default values when extraction fails
-  defaults:
-    author: ""
-    published: ""
-    description: ""
+  # Concurrency control for parallel fetching
+  max_concurrent: 5
 
 # =============================================================================
 # OUTPUT FORMATS
@@ -1480,7 +1440,6 @@ class FetchConfig(BaseModel):
     timeout: int = 30
     max_concurrent: int = 5
     user_agent: str = "clipmd/0.1"
-    readability: bool = True
 
 class Config(BaseModel):
     version: int = 1

@@ -352,7 +352,7 @@ Content here.
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         # Create two files with same URL (duplicates)
         (tmp_path / "20240101-article.md").write_text(
@@ -376,7 +376,7 @@ Content here.
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         # Create two files with same URL (duplicates)
         (tmp_path / "20240101-article.md").write_text(

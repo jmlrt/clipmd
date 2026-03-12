@@ -1,12 +1,11 @@
 ---
-title: "Sample Article for Testing"
-source: "https://blog.example.com/sample-article?utm_source=twitter&utm_medium=social"
-author: "Jane Doe"
-published: 2024-01-15
+author: Jane Doe
 clipped: 2024-01-16
-description: "A sample article used for testing clipmd functionality."
+description: A sample article used for testing clipmd functionality.
+published: 2024-01-15
+source: https://blog.example.com/sample-article
+title: Sample Article for Testing
 ---
-
 # Sample Article for Testing
 
 This is a sample article with proper frontmatter. It should be used for testing

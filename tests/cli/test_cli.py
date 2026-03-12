@@ -84,7 +84,7 @@ class TestContext:
 
         # Create valid config
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         ctx = Context()
         config1 = ctx.load_config(config_file)

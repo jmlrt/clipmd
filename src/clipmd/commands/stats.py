@@ -51,13 +51,10 @@ def stats_command(
     outside the configured min/max thresholds.
     """
     cli_ctx: Context = ctx.find_object(Context)  # type: ignore[assignment]
-    config = cli_ctx.config
+    config = cli_ctx.require_config()
 
-    if config is None:
-        console.print("[red]Error:[/red] No configuration loaded")
-        raise SystemExit(1)
-
-    target_path = path or config.paths.root
+    # Use provided path or fall back to vault root
+    target_path = path or cli_ctx.require_vault()
     folder_stats = stats.collect_folder_stats(target_path, config, include_special)
 
     if warnings_only:

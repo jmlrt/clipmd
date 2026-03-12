@@ -40,14 +40,11 @@ def trash_command(
         clipmd trash file1.md file2.md file3.md
     """
     cli_ctx: Context = ctx.find_object(Context)  # type: ignore[assignment]
-    config = cli_ctx.config
-
-    if config is None:
-        console.print("[red]Error:[/red] No configuration loaded")
-        raise SystemExit(1)
+    config = cli_ctx.require_config()
+    vault = cli_ctx.require_vault()
 
     # Expand glob patterns
-    paths = trash.expand_glob_patterns(list(files), config.paths.root)
+    paths = trash.expand_glob_patterns(list(files), vault)
 
     if not paths:
         console.print("[yellow]No files match the specified patterns[/yellow]")

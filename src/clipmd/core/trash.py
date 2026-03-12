@@ -107,9 +107,7 @@ def _update_cache_after_trash(paths: list[Path], config: Config) -> None:
         paths: List of paths that were trashed.
         config: Application configuration.
     """
-    cache_path = config.paths.cache
-    if not cache_path.is_absolute():
-        cache_path = config.paths.root / cache_path
+    cache_path = config.cache
 
     cache = load_cache(cache_path)
 

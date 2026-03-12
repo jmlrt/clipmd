@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from clipmd.config import find_config_file, load_config
+from clipmd.config import get_config_file_path, load_config
 from clipmd.core.discovery import discover_markdown_files
 from clipmd.exceptions import ClipmdError
 
@@ -46,20 +46,31 @@ class ValidationReport:
 
 
 def validate_config_exists(config_path: Path | None) -> ValidationResult:
-    """Check if config file exists.
+    """Check if config file exists at $XDG_CONFIG_HOME/clipmd/config.yaml.
 
     Args:
-        config_path: Explicit config path or None to search.
+        config_path: Explicit config path or None to use default ($XDG_CONFIG_HOME/clipmd/config.yaml).
 
     Returns:
         Validation result.
     """
-    path = find_config_file(config_path)
-    if path is None:
+    try:
+        path = get_config_file_path(config_path)
+    except ClipmdError as e:
         return ValidationResult(
             passed=False,
-            message="Config file not found",
-            details="Run 'clipmd init' to create one",
+            message="Config path error",
+            details=str(e),
+        )
+
+    if not path.exists():
+        return ValidationResult(
+            passed=False,
+            message=f"Config file not found at {path}",
+            details=(
+                f"Create a config file at {path}. You can use the project's "
+                "example-config.yaml as a starting point."
+            ),
         )
 
     return ValidationResult(
@@ -72,13 +83,21 @@ def validate_config_syntax(config_path: Path | None) -> ValidationResult:
     """Check if config file has valid syntax.
 
     Args:
-        config_path: Explicit config path or None to search.
+        config_path: Explicit config path or None to use default.
 
     Returns:
         Validation result.
     """
-    path = find_config_file(config_path)
-    if path is None:
+    try:
+        path = get_config_file_path(config_path)
+    except ClipmdError as e:
+        return ValidationResult(
+            passed=False,
+            message="Cannot validate config syntax",
+            details=str(e),
+        )
+
+    if not path.exists():
         return ValidationResult(
             passed=False,
             message="Cannot validate config syntax - file not found",
@@ -101,47 +120,62 @@ def validate_config_syntax(config_path: Path | None) -> ValidationResult:
 def validate_root_exists(
     config_path: Path | None, config: Config | None = None
 ) -> ValidationResult:
-    """Check if root path exists.
+    """Check if vault root path exists.
 
     Args:
-        config_path: Explicit config path or None to search.
-        config: Already-loaded config (with resolved vault root) or None to load from disk.
+        config_path: Explicit config path or None to use default.
+        config: Already-loaded config or None to load from disk.
 
     Returns:
         Validation result.
     """
     # Use provided config or load from disk
     if config is None:
-        path = find_config_file(config_path)
-        if path is None:
+        try:
+            path = get_config_file_path(config_path)
+        except ClipmdError as e:
             return ValidationResult(
                 passed=False,
-                message="Cannot validate root path - config not found",
+                message="Cannot validate vault root",
+                details=str(e),
             )
+
+        if not path.exists():
+            return ValidationResult(
+                passed=False,
+                message="Cannot validate vault root - config not found",
+            )
+
         try:
             config = load_config(path)
         except Exception as e:
             return ValidationResult(
                 passed=False,
-                message="Cannot validate root path",
+                message="Cannot validate vault root",
                 details=str(e),
             )
 
     try:
-        root = config.paths.root
+        root = config.vault
+        if root is None:
+            return ValidationResult(
+                passed=False,
+                message="Vault path not configured",
+            )
+
         if root.exists() and root.is_dir():
             return ValidationResult(
                 passed=True,
-                message=f"Root path exists: {root.resolve()}",
+                message=f"Vault path exists: {root.resolve()}",
             )
         return ValidationResult(
             passed=False,
-            message=f"Root path does not exist: {root}",
+            message=f"Vault path does not exist: {root}",
         )
     except Exception as e:
         return ValidationResult(
             passed=False,
-            message="Cannot validate root path",
+            message="Cannot validate vault root",
             details=str(e),
         )
 
@@ -152,33 +186,46 @@ def validate_cache_directory(
     """Check if cache directory is writable.
 
     Args:
-        config_path: Explicit config path or None to search.
-        config: Already-loaded config (with resolved vault root) or None to load from disk.
+        config_path: Explicit config path or None to use default.
+        config: Already-loaded config or None to load from disk.
 
     Returns:
         Validation result.
     """
     # Use provided config or load from disk
     if config is None:
-        path = find_config_file(config_path)
-        if path is None:
+        try:
+            path = get_config_file_path(config_path)
+        except ClipmdError as e:
+            return ValidationResult(
+                passed=False,
+                message="Cannot validate cache directory",
+                details=str(e),
+            )
+
+        if not path.exists():
             return ValidationResult(
                 passed=False,
                 message="Cannot validate cache directory - config not found",
             )
+
         try:
             config = load_config(path)
-        except Exception:
+        except Exception as e:
             return ValidationResult(
                 passed=False,
                 message="Cannot validate cache directory - config load failed",
+                details=str(e),
             )
 
     try:
-        cache_path = config.paths.cache
-        # If cache path is relative, resolve it against the vault root
-        if not cache_path.is_absolute():
-            cache_path = config.paths.root / cache_path
+        cache_path = config.cache
+        if cache_path is None:
+            return ValidationResult(
+                passed=False,
+                message="Cache path not configured",
+            )
+
         cache_dir = cache_path.parent
 
         # Check if parent directory exists or can be created
@@ -228,33 +275,48 @@ def validate_cache_directory(
 def validate_markdown_files(
     config_path: Path | None, config: Config | None = None
 ) -> ValidationResult:
-    """Count markdown files in root directory.
+    """Count markdown files in vault directory.
 
     Args:
-        config_path: Explicit config path or None to search.
-        config: Already-loaded config (with resolved vault root) or None to load from disk.
+        config_path: Explicit config path or None to use default.
+        config: Already-loaded config or None to load from disk.
 
     Returns:
         Validation result with file count.
     """
     # Use provided config or load from disk
     if config is None:
-        path = find_config_file(config_path)
-        if path is None:
+        try:
+            path = get_config_file_path(config_path)
+        except ClipmdError as e:
+            return ValidationResult(
+                passed=False,
+                message="Cannot count files",
+                details=str(e),
+            )
+
+        if not path.exists():
             return ValidationResult(
                 passed=False,
                 message="Cannot count files - config not found",
             )
+
         try:
             config = load_config(path)
-        except Exception:
+        except Exception as e:
             return ValidationResult(
                 passed=False,
                 message="Cannot count files - config load failed",
+                details=str(e),
             )
 
     try:
-        root = config.paths.root
+        root = config.vault
+        if root is None:
+            return ValidationResult(
+                passed=False,
+                message="Cannot count files - vault path not configured",
+            )
 
         # Count markdown files, excluding hidden and ignored files
         md_files = list(discover_markdown_files(root, config))

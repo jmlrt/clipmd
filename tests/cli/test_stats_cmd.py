@@ -28,7 +28,7 @@ class TestStatsCommand:
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         runner = CliRunner()
         result = runner.invoke(main, ["stats"])
@@ -40,7 +40,7 @@ class TestStatsCommand:
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         # Create articles in root
         for i in range(3):
@@ -63,7 +63,7 @@ class TestStatsCommand:
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         folder = tmp_path / "Tech"
         folder.mkdir()
@@ -80,7 +80,7 @@ class TestStatsCommand:
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         folder = tmp_path / "Tech"
         folder.mkdir()
@@ -123,7 +123,7 @@ class TestStatsCommand:
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         # Create normal folder
         folder = tmp_path / "Tech"
@@ -152,7 +152,7 @@ class TestStatsCommand:
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         # Create special folder
         special = tmp_path / "0-Inbox"
@@ -171,7 +171,7 @@ class TestStatsCommand:
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         # Create articles in two subdirectories
         sub1 = tmp_path / "Clippings"
@@ -197,7 +197,7 @@ class TestStatsCommand:
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         folder = tmp_path / "Tech"
         folder.mkdir()
@@ -216,7 +216,7 @@ class TestStatsCommand:
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         some_file = tmp_path / "article.md"
         some_file.write_text("---\ntitle: Test\n---\nContent.")

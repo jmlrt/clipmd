@@ -41,7 +41,7 @@ class TestFetchCommand:
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         runner = CliRunner()
         result = runner.invoke(main, ["fetch"])
@@ -53,7 +53,7 @@ class TestFetchCommand:
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         # Create URL file
         url_file = tmp_path / "urls.txt"
@@ -92,7 +92,7 @@ https://example.com/article3
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         mock_result = FetchResult(
             url="https://example.com/article",
@@ -122,7 +122,7 @@ https://example.com/article3
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n  cache: .clipmd/cache.json\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         # Create cache with existing URL
         cache_dir = tmp_path / ".clipmd"
@@ -152,7 +152,7 @@ https://example.com/article3
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n  cache: .clipmd/cache.json\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         # Create cache with existing URL
         cache_dir = tmp_path / ".clipmd"
@@ -201,7 +201,7 @@ https://example.com/article3
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         mock_result = FetchResult(
             url="https://example.com/article",
@@ -366,7 +366,7 @@ class TestFetchRss:
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         runner = CliRunner()
         result = runner.invoke(
@@ -385,7 +385,7 @@ class TestFetchErrors:
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         mock_result = FetchResult(
             url="https://example.com/article",
@@ -448,7 +448,7 @@ class TestFetchSaveArticle:
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
         config = load_config(config_file)
 
         result = FetchResult(
@@ -478,7 +478,7 @@ class TestFetchSaveArticle:
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
         config = load_config(config_file)
 
         result = FetchResult(
@@ -504,7 +504,7 @@ class TestFetchUrls:
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
         config = load_config(config_file)
 
         # Mock HTTP response
@@ -544,7 +544,7 @@ class TestFetchUrls:
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
         config = load_config(config_file)
 
         # Mock HTTP error
@@ -574,7 +574,7 @@ class TestFetchUrls:
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
         config = load_config(config_file)
 
         # Mock connection error
@@ -598,7 +598,7 @@ class TestFetchUrlTracking400Recovery:
         from clipmd.config import load_config
 
         monkeypatch.chdir(tmp_path)
-        (tmp_path / "config.yaml").write_text("version: 1\npaths:\n  root: .\n")
+        (tmp_path / "config.yaml").write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
         return load_config(tmp_path / "config.yaml")
 
     def test_http_400_with_embedded_tracking_url_recovers(
@@ -749,7 +749,7 @@ class TestFetchRssError:
         import httpx
 
         monkeypatch.chdir(tmp_path)
-        (tmp_path / "config.yaml").write_text("version: 1\npaths:\n  root: .\n")
+        (tmp_path / "config.yaml").write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         with patch(
             "clipmd.core.fetcher.fetch_rss_feed",
@@ -775,7 +775,7 @@ class TestFetchRssError:
         import httpx
 
         monkeypatch.chdir(tmp_path)
-        (tmp_path / "config.yaml").write_text("version: 1\npaths:\n  root: .\n")
+        (tmp_path / "config.yaml").write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         with patch(
             "clipmd.core.fetcher.fetch_rss_feed",
@@ -814,7 +814,7 @@ class TestCacheUpdate:
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n  cache: .clipmd/cache.json\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
         config = load_config(config_file)
 
         # Create cache dir
@@ -841,7 +841,7 @@ class TestCacheUpdate:
         update_cache_after_fetch(results, config)
 
         # Verify cache was updated
-        cache_path = config.paths.root / config.paths.cache
+        cache_path = config.cache
         cache = load_cache(cache_path)
         assert cache.has_url("https://example.com/article1")
         assert cache.has_url("https://example.com/article2")
@@ -860,7 +860,9 @@ class TestFetchUrlsFunction:
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\nfetch:\n  timeout: 10\n")
+        config_file.write_text(
+            "version: 1\nvault: .\ncache: .clipmd/cache.json\nfetch:\n  timeout: 10\n"
+        )
         config = load_config(config_file)
 
         # Mock httpx.AsyncClient
@@ -895,7 +897,9 @@ class TestFetchRssFeedFunction:
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\nfetch:\n  timeout: 10\n")
+        config_file.write_text(
+            "version: 1\nvault: .\ncache: .clipmd/cache.json\nfetch:\n  timeout: 10\n"
+        )
         config = load_config(config_file)
 
         feed_xml = """<?xml version="1.0"?>
@@ -939,7 +943,7 @@ class TestFetchWithReadability:
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
         config = load_config(config_file)
 
         # Mock HTTP response with more complete HTML
@@ -985,7 +989,7 @@ class TestFetchWithReadability:
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
         config = load_config(config_file)
 
         # Mock HTML with rich metadata in meta tags
@@ -1047,7 +1051,7 @@ class TestFetchCommandIntegration:
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n  cache: .clipmd/cache.json\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         # Create cache dir
         cache_dir = tmp_path / ".clipmd"
@@ -1079,7 +1083,7 @@ class TestFetchCommandIntegration:
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\npaths:\n  root: .\n  cache: .clipmd/cache.json\n")
+        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
 
         # Create cache with all URLs already saved
         cache_dir = tmp_path / ".clipmd"

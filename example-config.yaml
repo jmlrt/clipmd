@@ -1,0 +1,181 @@
+# clipmd Configuration Example (~/.config/clipmd/config.yaml)
+#
+# This file demonstrates all available configuration options.
+# Copy to ~/.config/clipmd/config.yaml and customize for your setup.
+
+version: 1
+
+# =============================================================================
+# REQUIRED PATHS
+# =============================================================================
+
+# Path to your articles vault (can use $HOME and other env vars)
+vault: $HOME/Documents/Articles
+
+# Path to cache file (tracks URLs and content hashes for deduplication)
+cache: $HOME/.cache/clipmd/cache.json
+
+# =============================================================================
+# FOLDER MANAGEMENT
+# =============================================================================
+
+# Patterns for folders to exclude from statistics/reorganization
+special_folders:
+  exclude_patterns:
+    - "0-*"        # Folders starting with "0-"
+    - ".*"         # Hidden folders
+    - "_*"         # Folders starting with "_"
+
+  # Files to always ignore
+  ignore_files:
+    - "README.md"
+    - "CLAUDE.md"
+
+# Warning thresholds for folder health checks
+folders:
+  warn_below: 10    # Warn if folder has fewer articles
+  warn_above: 45    # Warn if folder has more articles
+
+# =============================================================================
+# FRONTMATTER FIELD MAPPING
+# =============================================================================
+
+# Map semantic fields to your actual field names
+# Tool tries each name in order until one is found
+frontmatter:
+  source_url:
+    - source
+    - url
+    - link
+    - original_url
+    - clip_url
+
+  title:
+    - title
+    - name
+
+  published_date:
+    - published
+    - date
+    - publish_date
+
+  clipped_date:
+    - clipped
+    - saved
+    - created
+    - added
+
+  author:
+    - author
+    - by
+    - writer
+    - creator
+
+  description:
+    - description
+    - summary
+    - excerpt
+    - abstract
+
+# =============================================================================
+# DATE HANDLING
+# =============================================================================
+
+dates:
+  # Formats to try when parsing dates (in order)
+  input_formats:
+    - "%Y-%m-%d"           # 2024-01-17
+    - "%Y-%m-%dT%H:%M:%S"  # 2024-01-17T14:30:00
+    - "%d/%m/%Y"           # 17/01/2024
+    - "%B %d, %Y"          # January 17, 2024
+    - "%d %B %Y"           # 17 January 2024
+    - "%Y/%m/%d"           # 2024/01/17
+
+  # Format for date prefixes in filenames
+  output_format: "%Y%m%d"  # 20240117
+
+  # Field priority for extracting dates (first found is used)
+  prefix_priority:
+    - published
+    - clipped
+    - created
+
+  # Try to extract dates from article body if frontmatter is empty
+  extract_from_content: true
+
+  # Regex patterns for content date extraction
+  content_patterns:
+    - r"(?P<day>\d{1,2})(?:st|nd|rd|th)?\s+(?P<month>\w+)\s+(?P<year>\d{4})"
+    - r"(?P<month>\w+)\s+(?P<day>\d{1,2})(?:st|nd|rd|th)?,?\s+(?P<year>\d{4})"
+    - r"(?P<year>\d{4})-(?P<month>\d{2})-(?P<day>\d{2})"
+
+# =============================================================================
+# URL CLEANING
+# =============================================================================
+
+url_cleaning:
+  # Tracking parameters to remove
+  remove_params:
+    - utm_source
+    - utm_medium
+    - utm_campaign
+    - utm_content
+    - utm_term
+    - fbclid
+    - gclid
+    - ref
+    - source
+
+  # =============================================================================
+# FILENAME SANITIZATION
+# =============================================================================
+
+filenames:
+  # Character replacements for sanitization
+  replacements:
+    " ": "-"
+    "_": "-"
+    "'": ""
+    '"': ""
+    ":": "-"
+    "/": "-"
+    "\\": "-"
+    "|": "-"
+    "?": ""
+    "*": ""
+    "<": ""
+    ">": ""
+
+  # Unicode normalization (NFC, NFD, NFKC, NFKD, or null)
+  unicode_normalize: "NFC"
+
+  # Convert filenames to lowercase
+  lowercase: false
+
+  # Maximum filename length (including extension)
+  max_length: 100
+
+  # Collapse multiple consecutive dashes
+  collapse_dashes: true
+
+# =============================================================================
+# CACHE TRACKING
+# =============================================================================
+
+cache_config:
+  # Truncate hash to N characters (null for full hash)
+  hash_length: 16
+
+# =============================================================================
+# FETCH SETTINGS
+# =============================================================================
+
+fetch:
+  # HTTP request timeout (seconds)
+  timeout: 30
+
+  # User agent for HTTP requests
+  user_agent: "clipmd/0.1"
+
+  # Concurrency control for parallel fetching
+  max_concurrent: 5
