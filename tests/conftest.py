@@ -18,8 +18,8 @@ def isolate_xdg_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     xdg_home.mkdir(exist_ok=True)
     monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg_home))
 
-    # Create a minimal config in the isolated XDG location for most tests
-    # Init command tests override this behavior
+    # Create a minimal config in the isolated XDG location for all tests.
+    # Tests that need a different setup can modify or replace this config.
     config_dir = xdg_home / "clipmd"
     config_dir.mkdir(exist_ok=True)
     config_file = config_dir / "config.yaml"
