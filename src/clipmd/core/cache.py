@@ -12,7 +12,7 @@ from clipmd.core.hasher import hash_content
 from clipmd.core.sanitizer import clean_url
 
 if TYPE_CHECKING:
-    from clipmd.config import CacheConfig, Config
+    from clipmd.config import Config
     from clipmd.core.fetcher import FetchResult
 
 
@@ -390,12 +390,12 @@ class Cache:
         return cache
 
 
-def load_cache(path: Path | None = None, _config: CacheConfig | None = None) -> Cache:
+def load_cache(path: Path | None = None) -> Cache:
     """Load cache from configured path.
 
     Args:
-        path: Explicit path to load from.
-        _config: Cache configuration (reserved for future use).
+        path: Explicit path to load from. If not provided, defaults to .clipmd/cache.json
+              (used mainly in tests; production code should pass the configured path).
 
     Returns:
         Loaded Cache object.
