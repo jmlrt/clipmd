@@ -52,11 +52,17 @@ def stats_command(
     """
     cli_ctx: Context = ctx.find_object(Context)  # type: ignore[assignment]
     config = cli_ctx.config
-    assert config is not None
+    if config is None:  # pragma: no cover
+        console.print("[red]Error:[/red] Configuration not loaded")
+        raise SystemExit(1)
 
     # Use provided path or fall back to vault root
     target_path = path or config.vault
-    assert target_path is not None
+    if target_path is None:  # pragma: no cover
+        console.print(
+            "[red]Error:[/red] Vault path not configured. Provide PATH or set a vault in the configuration."
+        )
+        raise SystemExit(1)
     folder_stats = stats.collect_folder_stats(target_path, config, include_special)
 
     if warnings_only:

@@ -166,14 +166,33 @@ class Config(BaseModel):
     fetch: FetchConfig = Field(default_factory=FetchConfig)
 
     def model_post_init(self, __context: object) -> None:
-        """Expand environment variables in vault and cache paths."""
+        """Expand environment variables and user home in vault and cache paths.
+
+        Resolves relative cache paths against the vault path (if configured).
+        """
         del __context  # Unused, required by pydantic interface
+
+        # Normalize vault path
         if self.vault is not None:
             vault_str = str(self.vault)
-            self.vault = Path(os.path.expandvars(vault_str))
+            self.vault = Path(os.path.expandvars(vault_str)).expanduser()
+
+        # Normalize cache path and relate it to vault when relative
         if self.cache is not None:
             cache_str = str(self.cache)
-            self.cache = Path(os.path.expandvars(cache_str))
+            cache_path = Path(os.path.expandvars(cache_str)).expanduser()
+
+            if cache_path.is_absolute():
+                self.cache = cache_path
+            else:
+                if self.vault is None:
+                    raise ConfigError(
+                        "Relative cache path configured without a vault path. "
+                        "Either provide an absolute 'cache' path or set 'vault' so "
+                        "the cache path can be resolved relative to it."
+                    )
+                # Resolve relative cache path against vault
+                self.cache = self.vault / cache_path
 
 
 def get_xdg_config_home() -> Path:

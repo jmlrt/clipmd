@@ -41,8 +41,12 @@ def trash_command(
     """
     cli_ctx: Context = ctx.find_object(Context)  # type: ignore[assignment]
     config = cli_ctx.config
-    assert config is not None
-    assert config.vault is not None
+    if config is None:  # pragma: no cover
+        console.print("[red]Error:[/red] Configuration not loaded")
+        raise SystemExit(1)
+    if config.vault is None:  # pragma: no cover
+        console.print("[red]Error:[/red] Vault path not configured")
+        raise SystemExit(1)
 
     # Expand glob patterns
     paths = trash.expand_glob_patterns(list(files), config.vault)

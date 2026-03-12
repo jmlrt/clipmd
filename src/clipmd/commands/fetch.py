@@ -108,9 +108,15 @@ def fetch_command(
     """
     cli_ctx: Context = ctx.find_object(Context)  # type: ignore[assignment]
     config = cli_ctx.config
-    assert config is not None
-    assert config.vault is not None
-    assert config.cache is not None
+    if config is None:  # pragma: no cover
+        console.print("[red]Error:[/red] Configuration not loaded")
+        raise SystemExit(1)
+    if config.vault is None:  # pragma: no cover
+        console.print("[red]Error:[/red] Vault path not configured")
+        raise SystemExit(1)
+    if config.cache is None:  # pragma: no cover
+        console.print("[red]Error:[/red] Cache path not configured")
+        raise SystemExit(1)
 
     # Determine output directory
     output_dir = output or config.vault
