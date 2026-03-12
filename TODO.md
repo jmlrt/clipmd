@@ -35,6 +35,8 @@ or add an `--exclude` glob pattern option.
 
 **Priority**: Medium
 
+**Needed for**: Unattended triage workflow (prevents garbage in LLM prompt)
+
 `clipmd extract` includes documentation files (e.g. `README.md`, `CLAUDE.md`)
 in its "Needs Categorization" list, polluting the LLM prompt.
 
@@ -210,6 +212,8 @@ clipmd urls [--output PATH] [--format markdown|json|csv|plain]
 ### extract: `--format json` and move: `--from-json`
 
 **Priority**: Low
+
+**Needed for**: Unattended triage workflow (eliminates filename-matching fragility)
 
 The current triage round-trip (extract → Claude categorizes → move) uses
 free-text formats in both directions:
