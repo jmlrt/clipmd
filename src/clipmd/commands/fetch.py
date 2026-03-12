@@ -107,19 +107,12 @@ def fetch_command(
         clipmd fetch --rss "https://example.com/feed.xml"
     """
     cli_ctx: Context = ctx.find_object(Context)  # type: ignore[assignment]
-    config = cli_ctx.config
-    if config is None:  # pragma: no cover
-        console.print("[red]Error:[/red] Configuration not loaded")
-        raise SystemExit(1)
-    if config.vault is None:  # pragma: no cover
-        console.print("[red]Error:[/red] Vault path not configured")
-        raise SystemExit(1)
-    if config.cache is None:  # pragma: no cover
-        console.print("[red]Error:[/red] Cache path not configured")
-        raise SystemExit(1)
+    config = cli_ctx.require_config()
+    vault = cli_ctx.require_vault()
+    cli_ctx.require_cache()  # Ensure cache is configured
 
     # Determine output directory
-    output_dir = output or config.vault
+    output_dir = output or vault
 
     # Quick checks
     if not urls and not url_file:

@@ -70,10 +70,7 @@ def extract_command(
     token usage by 95%+ compared to reading full articles.
     """
     cli_ctx: Context = ctx.find_object(Context)  # type: ignore[assignment]
-    config = cli_ctx.config
-    if config is None:  # pragma: no cover
-        console.print("[red]Error:[/red] Configuration not loaded")
-        raise SystemExit(1)
+    config = cli_ctx.require_config()
 
     # Extract metadata
     result = extractor.extract_metadata(

@@ -63,23 +63,18 @@ def move_command(
     Use TRASH to move files to system trash.
     """
     cli_ctx: Context = ctx.find_object(Context)  # type: ignore[assignment]
-    config = cli_ctx.config
-    if config is None:  # pragma: no cover
-        console.print("[red]Error:[/red] Configuration not loaded")
-        raise SystemExit(1)
-    if config.vault is None:  # pragma: no cover
-        console.print("[red]Error:[/red] Vault path not configured")
-        raise SystemExit(1)
+    config = cli_ctx.require_config()
+    vault = cli_ctx.require_vault()
 
     # Track whether --source-dir was explicitly passed
     source_dir_explicit = source_dir is not None
     source_dir_is_relative = source_dir is not None and not source_dir.is_absolute()
 
     if source_dir is None:
-        source_dir = config.vault
+        source_dir = vault
     elif source_dir_is_relative:
         # Normalize relative paths against vault
-        source_dir = config.vault / source_dir
+        source_dir = vault / source_dir
 
     # Validate that source directory exists and is a directory after normalization
     if not source_dir.exists():
@@ -97,7 +92,7 @@ def move_command(
     # are eliminated before the containment check (lexical relative_to() can be
     # bypassed with paths like `root/../outside`).
     source_dir = source_dir.resolve()
-    vault_root = config.vault.resolve()
+    vault_root = vault.resolve()
 
     # Determine destination root for moves
     # Use vault root as destination when source_dir is a subdirectory of it
@@ -179,7 +174,7 @@ def move_command(
     if not source_dir_explicit and not dry_run and not skip_missing:
         missing = [f for f, e in move_stats.errors if e == "File not found"]
         if missing:
-            suggestions = mover.suggest_source_dir(missing, config.vault)
+            suggestions = mover.suggest_source_dir(missing, vault)
             if suggestions:
                 dirs = ", ".join(f"[bold]{d}[/bold]" for d in suggestions)
                 console.print(
