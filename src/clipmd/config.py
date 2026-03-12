@@ -114,8 +114,6 @@ class FoldersConfig(BaseModel):
 class CacheConfig(BaseModel):
     """Configuration for cache settings."""
 
-    track_urls: bool = True
-    track_content_hash: bool = True
     hash_length: int | None = 16
 
 

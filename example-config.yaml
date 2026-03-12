@@ -163,12 +163,6 @@ filenames:
 # =============================================================================
 
 cache_config:
-  # Track URLs to detect duplicates by source
-  track_urls: true
-
-  # Track content hash to detect duplicates by content
-  track_content_hash: true
-
   # Truncate hash to N characters (null for full hash)
   hash_length: 16
 

@@ -99,7 +99,6 @@ class TestCacheConfig:
     def test_defaults(self) -> None:
         """Test default cache settings."""
         config = CacheConfig()
-        assert config.track_urls is True
         assert config.hash_length == 16
 
 
