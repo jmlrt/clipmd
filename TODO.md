@@ -20,7 +20,7 @@ fully autonomous operation.
 | ✅ 4 | `fetch --file --clear-after` | Feature | High | Atomic inbox clear — prevents double-fetch on interrupted run | DONE |
 | ✅ 5 | `move --skip-missing` | Feature | Medium | Removes manual pre-validation bash loop | DONE |
 | 6 | [`extract`: exclude files without frontmatter](#extract-documentation-files-appear-in-output) | Bug Fix | Medium | Prevents INBOX.md/CLAUDE.md polluting LLM prompt | |
-| 7 | [Domain rules system (`extract --apply-rules`)](#domain-rules-system) | Feature | Medium | Largest token saver — known sources skip LLM entirely | |
+| ✅ 7 | [Domain rules system](#domain-rules-system) | Feature | Medium | Largest token saver — known sources skip LLM entirely | DONE |
 | 8 | [`extract --format json` + `move --from-json`](#extract---format-json--move---from-json) | Feature | Low | Eliminates filename-matching fragility end-to-end | |
 
 ---
@@ -174,20 +174,27 @@ clipmd report [--output PATH] [--format markdown|json]
 
 ### domain rules system
 
-**Priority**: Medium (moved up from Low — significant token savings for unattended triage)
+**Status**: ✅ IMPLEMENTED
 
 Automatic pre-categorization of articles based on domain → category rules.
 
-**Components**:
-- YAML-based rules file (`.clipmd/domain-rules.yaml`)
-- `extract --apply-rules` flag to pre-categorize before LLM prompt
-- `discover-rules` command to suggest rules from existing vault structure
+**Implemented**:
+- Config-based rules (dict in `config.yaml` with `domain_rules: {domain: folder}`)
+- Automatic rule application in `extract` command (no flag needed)
+- Rules displayed with → notation in extract output (e.g., `article.md → Dev-Tools`)
+- Works with markdown, JSON, and YAML output formats
+- Case-insensitive domain matching with port stripping
 
-**`discover-rules` behavior**:
-- Scan categorized articles, extract source domains
-- Identify domains that consistently appear in the same folder
-- Suggest high-confidence mappings; output in YAML format
-- Support `--min-articles`, `--min-confidence`, `--merge`, `--dry-run`
+**Example configuration**:
+```yaml
+domain_rules:
+  github.com: Dev-Tools
+  arxiv.org: Science
+  news.ycombinator.com: Tech
+```
+
+**Future enhancement (deferred)**:
+- `discover-rules` command to suggest rules from existing vault structure (Phase 2)
 
 ---
 

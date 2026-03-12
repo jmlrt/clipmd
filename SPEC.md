@@ -1431,11 +1431,6 @@ Use Pydantic v2 for config validation:
 from pathlib import Path
 from pydantic import BaseModel, Field
 
-class PathsConfig(BaseModel):
-    root: Path = Path(".")
-    cache: Path = Path(".clipmd/cache.json")
-    rules: Path = Path(".clipmd/domain-rules.yaml")
-
 class FetchConfig(BaseModel):
     timeout: int = 30
     max_concurrent: int = 5
@@ -1443,9 +1438,14 @@ class FetchConfig(BaseModel):
 
 class Config(BaseModel):
     version: int = 1
-    paths: PathsConfig = Field(default_factory=PathsConfig)
+    vault: Path | None = None  # Path to the vault
+    cache: Path | None = None  # Path to the cache file
+    domain_rules: dict[str, str] = Field(
+        default_factory=dict,
+        description="Domain to folder mappings for automatic categorization"
+    )
     fetch: FetchConfig = Field(default_factory=FetchConfig)
-    # ... other sections
+    # ... other configuration sections
 
 def load_config(path: Path | None = None) -> Config:
     """Load config from file or return defaults."""
