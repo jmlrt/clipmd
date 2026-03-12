@@ -19,6 +19,7 @@ from clipmd.core.frontmatter import (
     get_title,
     parse_frontmatter,
 )
+from clipmd.core.rules import match_domain
 from clipmd.core.sanitizer import extract_domain
 
 if TYPE_CHECKING:
@@ -41,6 +42,7 @@ class ArticleMetadata:
     word_count: int | None = None
     language: str | None = None
     error: str | None = None
+    suggested_folder: str | None = None
 
 
 @dataclass
@@ -221,6 +223,10 @@ def extract_metadata(
             result.errors.append((md_file, metadata.error))
             continue
 
+        # Apply domain rules from config
+        if metadata.domain:
+            metadata.suggested_folder = match_domain(metadata.domain, config.domain_rules)
+
         result.articles.append(metadata)
 
     return result
@@ -260,7 +266,11 @@ def format_markdown(result: ExtractionResult, include_stats: bool = False) -> st
             ]
         )
         for meta in result.articles:
-            lines.append(f"{meta.index}. {meta.filename}")
+            # Filename with optional suggested folder notation
+            filename_line = f"{meta.index}. {meta.filename}"
+            if meta.suggested_folder:
+                filename_line += f" → {meta.suggested_folder}"
+            lines.append(filename_line)
 
             # Build URL line with optional stats
             parts = []
@@ -320,6 +330,7 @@ def format_json(result: ExtractionResult) -> str:
                     "published": m.published,
                     "word_count": m.word_count,
                     "language": m.language,
+                    "suggested_folder": m.suggested_folder,
                 }.items()
                 if v is not None
             }
@@ -360,6 +371,7 @@ def format_yaml_output(result: ExtractionResult) -> str:
                     "published": m.published,
                     "word_count": m.word_count,
                     "language": m.language,
+                    "suggested_folder": m.suggested_folder,
                 }.items()
                 if v is not None
             }

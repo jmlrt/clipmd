@@ -139,6 +139,10 @@ class Config(BaseModel):
     folders: FoldersConfig = Field(default_factory=FoldersConfig)
     cache_config: CacheConfig = Field(default_factory=CacheConfig)
     fetch: FetchConfig = Field(default_factory=FetchConfig)
+    domain_rules: dict[str, str] = Field(
+        default_factory=dict,
+        description="Domain to folder mappings for automatic categorization (e.g. {'github.com': 'Dev-Tools'})",
+    )
 
     def model_post_init(self, __context: object) -> None:
         """Expand environment variables and user home in vault and cache paths.
