@@ -8,53 +8,64 @@ Known issues, planned features, and improvements for `clipmd`.
 
 ### move: `--source-dir` not auto-detected
 
-**Priority**: Medium
+**Priority**: Low (reorganization workflow only)
 
 When articles are stored in a subdirectory (e.g. `Inbox/`), `clipmd move`
 now hints at the correct `--source-dir` value, but users still need to
 re-run with the flag explicitly.
+
+**Note**: Not applicable to standard triage workflow (triage processes
+Clippings/ root only). This affects subfolder-to-subfolder reorganization.
 
 **Proposed fix**: Auto-detect source directory from file paths in the
 categorization file so users never need to pass `--source-dir` manually.
 
 ---
 
-### preprocess: date prefixes added to non-article files
-
-**Priority**: Medium
-
-`clipmd preprocess` adds date prefixes to files without frontmatter (e.g.
-`README.md`, `CLAUDE.md`) when they share the same directory as articles.
-
-**Proposed fix**: Skip date-prefixing for files that have no YAML frontmatter,
-or add an `--exclude` glob pattern option.
-
----
-
-### extract: documentation files appear in output
-
-**Priority**: Medium
-
-**Needed for**: Unattended triage workflow (prevents garbage in LLM prompt)
-
-`clipmd extract` includes documentation files (e.g. `README.md`, `CLAUDE.md`)
-in its "Needs Categorization" list, polluting the LLM prompt.
-
-**Proposed fix**: Auto-exclude files without frontmatter from extract output,
-or add an `--exclude` glob pattern option.
-
----
 
 ### duplicates: cross-folder duplicates not actionable
 
-**Priority**: Medium
+**Priority**: Low (reorganization workflow only)
 
 `clipmd duplicates` detects duplicates between folders but only removes
 duplicates within the same directory scope. Cross-folder duplicates are
 reported but cannot be resolved automatically.
 
+**Note**: Not applicable to standard triage workflow. The `preprocess --auto-remove-dupes`
+flag already handles root-level duplicates. This affects vault reorganization/cleanup.
+
 **Proposed fix**: Add `--scope all` flag to enable cross-folder duplicate
 resolution with user confirmation.
+
+---
+
+### fetch: Cache doesn't prevent re-fetch of manually removed files
+
+**Priority**: CRITICAL (causes data duplication despite working cache)
+
+When a user manually removes a file from disk, the cache correctly marks it as
+`removed: true` with a timestamp. However, when the same URL is fetched again,
+clipmd ignores the "removed" status and re-fetches the article, creating a
+new file.
+
+**Observed behavior** (2026-03-15):
+- URL in cache: `removed: true, removed_at: 2026-03-15T07:22:09`
+- Same URL in next fetch: Not skipped, fetched and recreated
+- Result: File brought back to life with new clipped date
+
+**Root cause**: `clipmd fetch` checks URL cache but doesn't consult the
+`removed` flag. It only checks if the file exists on disk, not if it was
+intentionally deleted.
+
+**Impact**: Users can't prevent re-fetch of articles they've deliberately
+removed. The only way to stop re-fetching is to clean up INBOX.md (which is
+broken due to --clear-after bug).
+
+**Proposed fix**:
+When `fetch` encounters a URL in cache with `removed: true`:
+1. Skip the fetch (don't recreate the file)
+2. Report: "Skipping (already removed): <URL>"
+3. Optional: Allow `--force-refetch` flag to override if needed
 
 ---
 
@@ -73,108 +84,147 @@ JS-disabled stub and saves it as a valid-looking `.md` file with
 
 ---
 
+### extract: skip files without frontmatter
+
+**Priority**: CRITICAL (needed for unattended triage workflow)
+
+`clipmd extract` includes all `.md` files in its "Needs Categorization" list, including
+documentation files like `README.md`, `CLAUDE.md`, and other non-article files. This
+pollutes the LLM prompt with non-article content.
+
+**Impact on unattended workflow**: Without filtering, the LLM has to process and skip
+documentation files, wasting tokens and adding cognitive noise to categorization decisions.
+
+**Proposed fix**: One of:
+
+1. **Option A**: Add `--exclude GLOB` flag (preferred for flexibility):
+   ```bash
+   clipmd extract ./Clippings/ --exclude '*.md' --exclude 'README*' --exclude '.*'
+   ```
+
+2. **Option B**: Auto-detect based on frontmatter (simple but requires parsing first):
+   - Skip files that fail to parse or have no frontmatter
+   - Report skipped files in verbose/debug output
+
+**Recommendation**: Option A (glob patterns) is more explicit and faster.
+
+---
+
+### fetch: `--clear-after` aborts entire operation on partial failures
+
+**Priority**: HIGH (confirmed data duplication in production)
+
+When `clipmd fetch --file INBOX.md --clear-after` encounters ANY fetch
+failure (e.g., one URL fails to save out of 30), the entire clear
+operation is aborted to prevent data loss. This leaves all URLs in the
+file, even though most fetched successfully, requiring manual cleanup.
+
+**Current behavior** (conservative, safe):
+- If ANY URL fails to fetch → abort clear → preserve entire file for retry
+- Result: User must manually clear or re-add only failed URL(s)
+
+**Observed issue**:
+- 29 of 30 URLs saved successfully
+- 1 failed (Obsidian iOS help page)
+- All 30 remained in INBOX.md after fetch completed
+
+**Proposed fix** (Option A): Improve `--clear-after` to handle partial failures gracefully:
+
+1. Clear all successfully-fetched URLs from the file
+2. Preserve failed URLs with `[KO]` prefix to flag them for investigation
+3. This ensures users can see at a glance which URLs need attention
+
+**Example behavior**:
+
+```
+# INBOX.md before clipping triage
+https://url-ok-1
+https://url-ok-2
+https://url-failing-1
+https://url-ok-3
+https://url-failing-2
+
+# INBOX.md after clipping triage (with --clear-after)
+[KO] https://url-failing-1
+[KO] https://url-failing-2
+```
+
+**Benefits**:
+- Balances safety with usability
+- Failed URLs are clearly visible and flagged for retry
+- No manual cleanup needed; users can immediately see next steps
+- Fetch summary in stdout also reports which URLs failed
+
+**Implementation note**:
+- Must maintain atomicity: either fully process the file or preserve all
+- `[KO]` prefix allows easy grep/filtering: `grep "^\[KO\]" INBOX.md`
+- Requires careful testing to ensure no partial failures from crashes
+
+---
+
 ## Features
 
 ### fetch: auto-detect RSS feeds in URL files
 
-**Priority**: Medium
+**Priority**: Very Low (YAGNI)
 
 When `clipmd fetch --file` processes a URL list, some entries may be
-RSS/Atom feed URLs. Currently they are fetched as HTML articles, resulting
-in garbled output or errors.
+RSS/Atom feed URLs. Currently they are fetched as HTML articles.
 
-**Proposed behavior**:
-1. Detect feed URLs by content-type (`application/rss+xml`,
-   `application/atom+xml`) or common path patterns (`/rss`, `/rss.xml`,
-   `/atom`, `/feed`, `/feed.xml`)
-2. Treat detected feeds as `--rss` sources and fetch their articles
-3. Offer to add the feed to `fetch.rss_feeds` in `config.yaml`:
+**Status**: Users already have `--rss` flag for intentional feed fetching.
+Auto-detection would add complexity without clear benefit.
 
-```
-ℹ️  https://example.com/rss.xml looks like an RSS feed (10 articles fetched)
-   Add to default RSS feeds in config? [y/N]:
-```
+**Recommendation**: Users should explicitly specify `--rss` for feeds in
+their config or command line. YAGNI: Don't implement auto-detection.
 
 ---
 
 ### fetch: custom frontmatter template
 
-**Priority**: Low
+**Priority**: Very Low (YAGNI)
 
-Add `--template PATH` flag to `clipmd fetch` to allow custom frontmatter
-structure when saving articles.
+The standard frontmatter template works well for most workflows.
 
-**Template file format (`my-template.yaml`)**:
-
-```yaml
-title: "{title}"
-url: "{url}"
-date_saved: "{clipped}"
-tags: []
-status: unread
-```
-
-**Available variables**: `{title}`, `{url}`, `{author}`, `{published}`,
-`{clipped}`, `{description}`, `{domain}`
+**Status**: No user requests for custom templates. Standard format is
+flexible enough. YAGNI: Don't implement unless clear use case emerges.
 
 ---
 
 ### stats/report: report command
 
-**Priority**: Low
+**Priority**: Very Low (YAGNI)
 
-Add a `clipmd report` command that generates a structured summary with folder
-recommendations.
+The existing `clipmd stats` command provides folder statistics and recommendations.
 
-```bash
-clipmd report [--output PATH] [--format markdown|json]
-```
-
-**Example output**:
-
-```markdown
-# Articles Report
-
-## Statistics
-- Total articles: 243
-- Folders: 8
-
-## Folder Details
-| Folder    | Count | Status       |
-|-----------|-------|--------------|
-| AI-Tools  | 45    | ⚠️ At max   |
-| Science   | 32    | OK           |
-| Misc      | 8     | ⚠️ Below min |
-
-## Recommendations
-- Consider splitting AI-Tools/ (45 articles, above threshold)
-- Consider merging Misc/ (8 articles) into another folder
-```
+**Status**: Feature request for formatted report, but `stats` already covers
+the use case. YAGNI: Use `clipmd stats` instead.
 
 ---
 
 ### cache management commands
 
-**Priority**: Low (Phase 2+)
+**Priority**: Very Low (Phase 3+, advanced users only)
 
 Subcommands to inspect and maintain the URL cache.
 
+**Status**: Advanced functionality for power users. Not needed for standard
+triage workflow. Keep in backlog for future enhancement.
+
 ```bash
 clipmd cache show     # Display cache statistics
-clipmd cache check URL
 clipmd cache clean    # Remove entries for deleted files
-clipmd cache export [--output PATH]
-clipmd cache import FILE
-clipmd cache clear
 ```
 
 ---
 
 ### URLs export command
 
-**Priority**: Low (Phase 2+)
+**Priority**: Very Low (Phase 3+, nice-to-have)
 
 Export all article URLs from the vault.
+
+**Status**: Nice-to-have for data export. Not needed for triage workflow.
+Keep in backlog for future.
 
 ```bash
 clipmd urls [--output PATH] [--format markdown|json|csv|plain]
@@ -185,40 +235,40 @@ clipmd urls [--output PATH] [--format markdown|json|csv|plain]
 
 ### extract: `--format json` and move: `--from-json`
 
-**Priority**: Low
+**Priority**: CRITICAL (essential for unattended triage workflow)
 
-**Needed for**: Unattended triage workflow (eliminates filename-matching fragility)
+**Needed for**: Full automation of triage workflow without manual filename parsing
 
-The current triage round-trip (extract → Claude categorizes → move) uses
-free-text formats in both directions:
-- `clipmd extract` outputs human-readable text with truncated filenames
-- Claude writes a numbered plain-text `categorization.txt`
-- `clipmd move` parses that text
+The unattended triage round-trip requires robust I/O between clipmd and LLM:
 
-This creates a fragile pipeline: filename truncation, formatting edge cases,
-and parsing assumptions can all silently produce wrong results.
+1. **extract** produces article metadata (currently text format with truncated filenames)
+2. **LLM categorizes** articles and produces categorization decisions
+3. **move** processes decisions and reorganizes files
 
-**Proposed**: Add JSON I/O mode for the extract → categorize → move pipeline:
+**Current limitation**: Text format requires filename matching and parsing, which is
+fragile when filenames are truncated or have special characters.
+
+**Proposed solution**: Add JSON I/O mode for schema-constrained round-trip:
 
 ```bash
-# Extract to JSON
+# Extract to JSON with full filenames
 clipmd extract /path/to/Clippings/ --format json > articles.json
 
-# Claude reads articles.json, writes categorization.json:
-# [{"file": "exact-filename.md", "folder": "Geek"}, ...]
+# Claude reads articles.json, outputs categorization.json:
+# [{"file": "exact-full-filename.md", "folder": "Dev-Tools"}, ...]
 
-# Move from JSON
+# Move from JSON (exact filename matching, no parsing)
 clipmd move --from-json /path/categorization.json
 ```
 
-**Benefits**:
-- Filenames are never truncated (JSON string field, no display limit)
-- No parsing ambiguity in either direction
-- Easy to validate structure before executing move
-- Claude output is schema-constrained, reducing categorization errors
+**Benefits for unattended workflow**:
+- Full filenames preserved (no truncation in LLM prompt)
+- Schema-constrained output (LLM can't produce malformed decisions)
+- Eliminates fragile text parsing in move command
+- Enables fully automated workflows without manual intervention
 
-**Implementation note**: The existing plain-text format should remain the
-default; `--format json` is opt-in to avoid breaking existing workflows.
+**Implementation note**: The existing plain-text format remains the default;
+`--format json` is opt-in. Both formats coexist for backward compatibility.
 
 ---
 
@@ -277,6 +327,53 @@ without a config.
 
 **Recommendation**: Address in config validation enhancement PR after
 gathering feedback from user workflows.
+
+---
+
+### Filename sanitization: transliterate accented characters to base letters
+
+**Priority**: Medium (affects filename consistency and cache matching)
+
+**Issue**: When filenames contain accented characters (é, è, ê, ë, ç, ö, etc.),
+the current sanitization produces inconsistent results. The cache may store one
+version of the filename while the filesystem has another, causing:
+- Cache lookup failures (can't match files by name)
+- User confusion when looking for files
+- Filename truncation as a workaround
+
+**Current behavior**:
+- `Inspiré` → `Inspir` (truncated, diacritics stripped)
+- `Pétrole` → `P-trole` (diacritics garbled)
+- `Yaël` → `Ya-l` (inconsistent)
+
+**Proposed behavior**:
+- `Inspiré` → `Inspire` (transliterate é → e)
+- `Pétrole` → `Petrole` (transliterate é → e)
+- `Yaël` → `Yael` (transliterate ë → e)
+- `Cést` → `Cest` (transliterate é → e)
+- `Français` → `Francais` (transliterate ç → c)
+
+**Implementation**:
+Use Unicode NFKD decomposition or `unidecode` library to convert accented
+characters to their base equivalents:
+```python
+import unicodedata
+def remove_accents(text):
+    return ''.join(
+        c for c in unicodedata.normalize('NFD', text)
+        if unicodedata.category(c) != 'Mn'
+    )
+```
+
+**Benefits**:
+- Consistent filenames across fetch and cache
+- Better file discoverability
+- Fixes cache lookup issues when matching by URL
+- More readable filenames for users
+- Prevents filename truncation
+
+**Related**: Fixes cache matching issue discovered 2026-03-15 where accented
+filenames in cache didn't match on-disk files due to inconsistent sanitization.
 
 ---
 
