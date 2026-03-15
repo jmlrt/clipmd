@@ -55,6 +55,8 @@ def format_fetch_text_output(
     if not stats.total:
         if orch_result.skipped_urls:
             lines.append("[yellow]All URLs already saved[/yellow]")
+        elif orch_result.removed_urls:
+            lines.append("[yellow]All URLs already removed[/yellow]")
         else:
             lines.append("[yellow]No URLs to fetch[/yellow]")
         return lines
