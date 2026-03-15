@@ -17,6 +17,12 @@ console = Console()
 @click.argument(
     "categorization_file",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    required=False,
+)
+@click.option(
+    "--from-json",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    help="Read categorization from JSON file instead of text format",
 )
 @click.option(
     "--dry-run",
@@ -46,7 +52,8 @@ console = Console()
 @click.pass_context
 def move_command(
     ctx: click.Context,
-    categorization_file: Path,
+    categorization_file: Path | None,
+    from_json: Path | None,
     dry_run: bool,
     create_folders: bool,
     no_cache_update: bool,
@@ -55,12 +62,15 @@ def move_command(
 ) -> None:
     """Move files based on a categorization file.
 
-    The categorization file format is:
+    CATEGORIZATION_FILE format (plain text):
     1. Category - filename.md
     2. Another-Category - another-file.md
     3. TRASH - duplicate.md
 
-    Use TRASH to move files to system trash.
+    Alternatively, use --from-json to read categorization from JSON format:
+    [{"file": "filename.md", "folder": "Category"}, ...]
+
+    Use TRASH as the folder to move files to system trash.
     """
     cli_ctx: Context = ctx.find_object(Context)  # type: ignore[assignment]
     config = cli_ctx.require_config()
@@ -111,9 +121,22 @@ def move_command(
     if dry_run:
         console.print("[yellow]Dry run - no files will be moved[/yellow]\n")
 
+    # Validate input: must have either categorization_file or --from-json, but not both
+    if from_json and categorization_file:
+        raise click.UsageError("Cannot use both a categorization file and --from-json")
+    if not from_json and not categorization_file:
+        raise click.UsageError("Provide a categorization file or --from-json")
+
     # Read and parse the categorization file
-    file_content = categorization_file.read_text(encoding="utf-8")
-    instructions = mover.parse_categorization_file(file_content)
+    if from_json:
+        file_content = from_json.read_text(encoding="utf-8")
+        try:
+            instructions = mover.parse_json_categorization(file_content)
+        except ValueError as e:
+            raise click.ClickException(str(e)) from e
+    else:
+        file_content = categorization_file.read_text(encoding="utf-8")  # type: ignore[union-attr]
+        instructions = mover.parse_categorization_file(file_content)
 
     if not instructions:
         console.print("[yellow]No valid move instructions found[/yellow]")

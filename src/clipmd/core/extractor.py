@@ -25,6 +25,9 @@ from clipmd.core.sanitizer import extract_domain
 if TYPE_CHECKING:
     from clipmd.config import Config
 
+# Sentinel error code for files without frontmatter (not a real error, just a skip indicator)
+_NO_FRONTMATTER_ERROR = "__no_frontmatter__"
+
 
 @dataclass
 class ArticleMetadata:
@@ -54,6 +57,7 @@ class ExtractionResult:
     folders: list[str] = field(default_factory=list)
     articles: list[ArticleMetadata] = field(default_factory=list)
     errors: list[tuple[Path, str]] = field(default_factory=list)
+    skipped: list[tuple[Path, str]] = field(default_factory=list)
 
 
 def extract_article_metadata(
@@ -94,6 +98,11 @@ def extract_article_metadata(
         parsed = parse_frontmatter(content)
     except Exception as e:
         metadata.error = f"Could not parse frontmatter: {e}"
+        return metadata
+
+    # Check if file has frontmatter
+    if not parsed.has_frontmatter:
+        metadata.error = _NO_FRONTMATTER_ERROR
         return metadata
 
     # Extract fields
@@ -210,8 +219,6 @@ def extract_metadata(
     # Find all markdown files in root (not in subfolders)
     md_files = sorted(discover_markdown_files(path, config, recursive=False))
 
-    result.total = len(md_files)
-
     # Extract metadata from each file
     for idx, md_file in enumerate(md_files, start=1):
         metadata = extract_article_metadata(
@@ -223,7 +230,10 @@ def extract_metadata(
             include_stats=include_stats,
         )
 
-        if metadata.error:
+        if metadata.error == _NO_FRONTMATTER_ERROR:
+            result.skipped.append((md_file, "no frontmatter"))
+            continue
+        elif metadata.error:
             result.errors.append((md_file, metadata.error))
             continue
 
@@ -232,6 +242,9 @@ def extract_metadata(
             metadata.suggested_folder = match_domain(metadata.domain, config.domain_rules)
 
         result.articles.append(metadata)
+
+    # Total reflects extracted articles, not all scanned files
+    result.total = len(result.articles)
 
     return result
 

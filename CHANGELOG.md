@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `move --from-json`: Accept JSON categorization file for schema-constrained round-trip with `extract --format json`
 - Domain rules system for automatic article pre-categorization
   - Configure in `config.yaml` with `domain_rules: {domain: folder}` mapping
   - `extract` command automatically applies rules and displays suggestions with → notation
@@ -20,6 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `fetch` command no longer re-fetches manually removed URLs (always skips URLs marked as removed in cache)
+- `fetch --clear-after` now clears the URL file after successful fetches and handles partial failures gracefully:
+  - On full success: clears URL file entirely
+  - On partial failure: retains failed URLs with `[KO]` suffix and actual error messages (e.g., `url # [KO] - Failed to save`)
+- `extract` command now skips files without frontmatter (e.g., README.md, CLAUDE.md) and reports them in verbose mode
+- Filename sanitization now transliterates accented characters to ASCII equivalents (é→e, ç→c, ë→e, etc.)
 - `fetch` command no longer truncates long article titles in generated filenames
 - `extract` command no longer wraps long filenames at terminal width (outputs raw text for LLM processing)
 - `move` command now resolves destination folders to vault root when `--source-dir` is a relative path (fixes nested folder creation)

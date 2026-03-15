@@ -4,10 +4,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from clipmd.core.mover import (
     MoveInstruction,
     _levenshtein_distance,
     find_suspicious_categories,
+    parse_json_categorization,
     suggest_source_dir,
 )
 
@@ -141,3 +144,168 @@ class TestSuggestSourceDir:
         (tmp_path / "article.md").write_text("content")
         result = suggest_source_dir(["article.md"], tmp_path)
         assert result == []
+
+
+class TestParseJsonCategorization:
+    """Tests for parse_json_categorization function."""
+
+    def test_valid_input_multiple_items(self) -> None:
+        """Test parsing valid JSON with multiple items."""
+        json_str = '[{"file": "article1.md", "folder": "Tech"}, {"file": "article2.md", "folder": "Science"}]'
+        instructions = parse_json_categorization(json_str)
+        assert len(instructions) == 2
+        assert instructions[0].filename == "article1.md"
+        assert instructions[0].category == "Tech"
+        assert instructions[0].index == 1
+        assert not instructions[0].is_trash
+        assert instructions[1].filename == "article2.md"
+        assert instructions[1].category == "Science"
+        assert instructions[1].index == 2
+
+    def test_trash_folder_sets_is_trash(self) -> None:
+        """Test that TRASH folder sets is_trash=True."""
+        json_str = '[{"file": "duplicate.md", "folder": "TRASH"}]'
+        instructions = parse_json_categorization(json_str)
+        assert len(instructions) == 1
+        assert instructions[0].filename == "duplicate.md"
+        assert instructions[0].category == "TRASH"
+        assert instructions[0].is_trash is True
+
+    def test_trash_lowercase_sets_is_trash(self) -> None:
+        """Test that lowercase 'trash' also sets is_trash=True."""
+        json_str = '[{"file": "duplicate.md", "folder": "trash"}]'
+        instructions = parse_json_categorization(json_str)
+        assert instructions[0].is_trash is True
+
+    def test_invalid_json_raises_error(self) -> None:
+        """Test that invalid JSON raises ValueError."""
+        json_str = '{"file": "article.md"'  # Invalid: missing closing brace
+        with pytest.raises(ValueError, match="Invalid JSON"):
+            parse_json_categorization(json_str)
+
+    def test_non_list_json_raises_error(self) -> None:
+        """Test that non-list JSON raises ValueError."""
+        json_str = '{"file": "article.md", "folder": "Tech"}'
+        with pytest.raises(ValueError, match="JSON must be a list"):
+            parse_json_categorization(json_str)
+
+    def test_missing_file_key_raises_error(self) -> None:
+        """Test that missing 'file' key raises ValueError."""
+        json_str = '[{"folder": "Tech"}]'
+        with pytest.raises(ValueError, match="missing required keys"):
+            parse_json_categorization(json_str)
+
+    def test_missing_folder_key_raises_error(self) -> None:
+        """Test that missing 'folder' key raises ValueError."""
+        json_str = '[{"file": "article.md"}]'
+        with pytest.raises(ValueError, match="missing required keys"):
+            parse_json_categorization(json_str)
+
+    def test_non_dict_item_raises_error(self) -> None:
+        """Test that non-dict items raise ValueError."""
+        json_str = '["not a dict"]'
+        with pytest.raises(ValueError, match="must be an object"):
+            parse_json_categorization(json_str)
+
+    def test_empty_list_returns_empty(self) -> None:
+        """Test that empty list returns empty instructions."""
+        json_str = "[]"
+        instructions = parse_json_categorization(json_str)
+        assert instructions == []
+
+    def test_file_with_path_separator_raises_error(self) -> None:
+        """Test that file with path separator raises ValueError."""
+        json_str = '[{"file": "subdir/article.md", "folder": "Tech"}]'
+        with pytest.raises(ValueError, match="'file' must be a basename"):
+            parse_json_categorization(json_str)
+
+    def test_file_with_backslash_raises_error(self) -> None:
+        """Test that file with backslash raises ValueError."""
+        json_str = '[{"file": "subdir\\\\article.md", "folder": "Tech"}]'
+        with pytest.raises(ValueError, match="'file' must be a basename"):
+            parse_json_categorization(json_str)
+
+    def test_file_with_path_traversal_raises_error(self) -> None:
+        """Test that file with path traversal (..) raises ValueError."""
+        json_str = '[{"file": "../article.md", "folder": "Tech"}]'
+        with pytest.raises(ValueError, match="'file' must be a basename"):
+            parse_json_categorization(json_str)
+
+    def test_file_absolute_path_raises_error(self) -> None:
+        """Test that absolute file path raises ValueError."""
+        json_str = '[{"file": "/article.md", "folder": "Tech"}]'
+        with pytest.raises(ValueError, match="'file' must be a basename"):
+            parse_json_categorization(json_str)
+
+    def test_folder_with_path_separator_raises_error(self) -> None:
+        """Test that folder with path separator raises ValueError."""
+        json_str = '[{"file": "article.md", "folder": "Tech/News"}]'
+        with pytest.raises(ValueError, match="must contain only letters"):
+            parse_json_categorization(json_str)
+
+    def test_folder_with_path_traversal_raises_error(self) -> None:
+        """Test that folder with path traversal (..) raises ValueError."""
+        json_str = '[{"file": "article.md", "folder": "../Outside"}]'
+        with pytest.raises(ValueError, match="must contain only letters"):
+            parse_json_categorization(json_str)
+
+    def test_folder_absolute_path_raises_error(self) -> None:
+        """Test that absolute folder path raises ValueError."""
+        json_str = '[{"file": "article.md", "folder": "/etc/passwd"}]'
+        with pytest.raises(ValueError, match="must contain only letters"):
+            parse_json_categorization(json_str)
+
+    def test_trash_folder_bypasses_path_validation(self) -> None:
+        """Test that TRASH folder is not validated for path separators."""
+        json_str = '[{"file": "article.md", "folder": "TRASH"}]'
+        instructions = parse_json_categorization(json_str)
+        assert len(instructions) == 1
+        assert instructions[0].is_trash is True
+
+    def test_file_with_double_dot_in_name_is_allowed(self) -> None:
+        """Test that legitimate filenames with .. substring are allowed."""
+        json_str = '[{"file": "my..notes.md", "folder": "Tech"}]'
+        instructions = parse_json_categorization(json_str)
+        assert len(instructions) == 1
+        assert instructions[0].filename == "my..notes.md"
+
+    def test_folder_with_invalid_chars_raises_error(self) -> None:
+        """Test that folder names with invalid characters are rejected."""
+        for invalid_folder in ["News.Updates", "Tech News", "cat@home", "News..Updates"]:
+            json_str = f'[{{"file": "article.md", "folder": "{invalid_folder}"}}]'
+            with pytest.raises(ValueError, match="must contain only letters"):
+                parse_json_categorization(json_str)
+
+    def test_folder_dot_raises_error(self) -> None:
+        """Test that '.' as folder name is rejected."""
+        json_str = '[{"file": "article.md", "folder": "."}]'
+        with pytest.raises(ValueError, match="must contain only letters"):
+            parse_json_categorization(json_str)
+
+    def test_folder_dotdot_raises_error(self) -> None:
+        """Test that '..' as folder name is rejected."""
+        json_str = '[{"file": "article.md", "folder": ".."}]'
+        with pytest.raises(ValueError, match="must contain only letters"):
+            parse_json_categorization(json_str)
+
+    def test_file_with_leading_trailing_whitespace_is_stripped(self) -> None:
+        """Test that whitespace is stripped from file names."""
+        json_str = '[{"file": "  article.md  ", "folder": "Tech"}]'
+        instructions = parse_json_categorization(json_str)
+        assert len(instructions) == 1
+        assert instructions[0].filename == "article.md"
+
+    def test_folder_with_leading_trailing_whitespace_is_stripped(self) -> None:
+        """Test that whitespace is stripped from folder names."""
+        json_str = '[{"file": "article.md", "folder": "  Tech  "}]'
+        instructions = parse_json_categorization(json_str)
+        assert len(instructions) == 1
+        assert instructions[0].category == "Tech"
+
+    def test_trash_with_whitespace_is_recognized(self) -> None:
+        """Test that TRASH with surrounding whitespace is still recognized."""
+        json_str = '[{"file": "article.md", "folder": "  TRASH  "}]'
+        instructions = parse_json_categorization(json_str)
+        assert len(instructions) == 1
+        assert instructions[0].is_trash is True
+        assert instructions[0].category == "TRASH"

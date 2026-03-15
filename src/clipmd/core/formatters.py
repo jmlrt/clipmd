@@ -46,10 +46,17 @@ def format_fetch_text_output(
         for url in orch_result.skipped_urls:
             lines.append(f"[dim]Skipping (already saved): {url}[/dim]")
 
+    # Removed URLs (previously downloaded but then deleted)
+    if options.show_skipped and orch_result.removed_urls:
+        for url in orch_result.removed_urls:
+            lines.append(f"[dim]Skipping (already removed): {url}[/dim]")
+
     # Early exit if nothing to fetch
     if not stats.total:
         if orch_result.skipped_urls:
             lines.append("[yellow]All URLs already saved[/yellow]")
+        elif orch_result.removed_urls:
+            lines.append("[yellow]All URLs already removed[/yellow]")
         else:
             lines.append("[yellow]No URLs to fetch[/yellow]")
         return lines
@@ -111,6 +118,8 @@ def format_fetch_json_output(orch_result: FetchOrchestrationResult) -> str:
     output_data = {
         "total": stats.total,
         "saved": stats.saved,
+        "skipped": len(orch_result.skipped_urls),
+        "removed": len(orch_result.removed_urls),
         "errors": [{"url": url, "error": err} for url, err in stats.errors],
     }
     if orch_result.rss_error:
