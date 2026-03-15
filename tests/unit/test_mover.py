@@ -224,3 +224,58 @@ class TestParseJsonCategorization:
         json_str = '[{"file": "article.md", "folder": 456}]'
         with pytest.raises(ValueError, match="'folder' must be a string"):
             parse_json_categorization(json_str)
+
+    def test_file_with_path_separator_raises_error(self) -> None:
+        """Test that file with path separator raises ValueError."""
+        json_str = '[{"file": "subdir/article.md", "folder": "Tech"}]'
+        with pytest.raises(ValueError, match="'file' must be a basename"):
+            parse_json_categorization(json_str)
+
+    def test_file_with_backslash_raises_error(self) -> None:
+        """Test that file with backslash raises ValueError."""
+        json_str = '[{"file": "subdir\\\\article.md", "folder": "Tech"}]'
+        with pytest.raises(ValueError, match="'file' must be a basename"):
+            parse_json_categorization(json_str)
+
+    def test_file_with_path_traversal_raises_error(self) -> None:
+        """Test that file with path traversal (..) raises ValueError."""
+        json_str = '[{"file": "../article.md", "folder": "Tech"}]'
+        with pytest.raises(ValueError, match="'file' must be a basename"):
+            parse_json_categorization(json_str)
+
+    def test_file_without_md_extension_raises_error(self) -> None:
+        """Test that file without .md extension raises ValueError."""
+        json_str = '[{"file": "article.txt", "folder": "Tech"}]'
+        with pytest.raises(ValueError, match="must end with .md"):
+            parse_json_categorization(json_str)
+
+    def test_file_absolute_path_raises_error(self) -> None:
+        """Test that absolute file path raises ValueError."""
+        json_str = '[{"file": "/article.md", "folder": "Tech"}]'
+        with pytest.raises(ValueError, match="'file' must be a basename"):
+            parse_json_categorization(json_str)
+
+    def test_folder_with_path_separator_raises_error(self) -> None:
+        """Test that folder with path separator raises ValueError."""
+        json_str = '[{"file": "article.md", "folder": "Tech/News"}]'
+        with pytest.raises(ValueError, match="'folder' must not contain path separators"):
+            parse_json_categorization(json_str)
+
+    def test_folder_with_path_traversal_raises_error(self) -> None:
+        """Test that folder with path traversal (..) raises ValueError."""
+        json_str = '[{"file": "article.md", "folder": "../Outside"}]'
+        with pytest.raises(ValueError, match="'folder' must not contain path separators"):
+            parse_json_categorization(json_str)
+
+    def test_folder_absolute_path_raises_error(self) -> None:
+        """Test that absolute folder path raises ValueError."""
+        json_str = '[{"file": "article.md", "folder": "/etc/passwd"}]'
+        with pytest.raises(ValueError, match="'folder' must not contain path separators"):
+            parse_json_categorization(json_str)
+
+    def test_trash_folder_bypasses_path_validation(self) -> None:
+        """Test that TRASH folder is not validated for path separators."""
+        json_str = '[{"file": "article.md", "folder": "TRASH"}]'
+        instructions = parse_json_categorization(json_str)
+        assert len(instructions) == 1
+        assert instructions[0].is_trash is True

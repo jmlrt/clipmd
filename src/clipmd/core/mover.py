@@ -112,8 +112,13 @@ def parse_json_categorization(content: str) -> list[MoveInstruction]:
 
     Use "TRASH" as folder to send files to trash.
 
+    Validates:
+    - file: must be basename (no path separators), end with .md, no path traversal
+    - folder: no path separators, no path traversal, no absolute paths
+
     Raises:
-        ValueError: If JSON is invalid, missing required keys, or fields have wrong types.
+        ValueError: If JSON is invalid, missing required keys, fields have wrong types,
+                    or contain invalid values (path traversal, separators, etc.).
     """
     try:
         data = json.loads(content)
@@ -138,6 +143,22 @@ def parse_json_categorization(content: str) -> list[MoveInstruction]:
             raise ValueError(f"Item {i}: 'file' must be a string, got {type(filename).__name__}")
         if not isinstance(category, str):
             raise ValueError(f"Item {i}: 'folder' must be a string, got {type(category).__name__}")
+
+        # Validate filename: must be basename, end with .md, no path traversal
+        if "/" in filename or "\\" in filename or ".." in filename:
+            raise ValueError(
+                f"Item {i}: 'file' must be a basename (no path separators or traversal): {filename}"
+            )
+        if not filename.endswith(".md"):
+            raise ValueError(f"Item {i}: 'file' must end with .md: {filename}")
+
+        # Validate folder: no path separators, no path traversal (unless TRASH)
+        if category.upper() != "TRASH" and (
+            "/" in category or "\\" in category or ".." in category
+        ):
+            raise ValueError(
+                f"Item {i}: 'folder' must not contain path separators or traversal: {category}"
+            )
 
         instructions.append(
             MoveInstruction(
