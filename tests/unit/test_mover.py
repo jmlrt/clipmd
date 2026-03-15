@@ -279,3 +279,17 @@ class TestParseJsonCategorization:
         instructions = parse_json_categorization(json_str)
         assert len(instructions) == 1
         assert instructions[0].is_trash is True
+
+    def test_file_with_double_dot_in_name_is_allowed(self) -> None:
+        """Test that legitimate filenames with .. substring are allowed."""
+        json_str = '[{"file": "my..notes.md", "folder": "Tech"}]'
+        instructions = parse_json_categorization(json_str)
+        assert len(instructions) == 1
+        assert instructions[0].filename == "my..notes.md"
+
+    def test_folder_with_double_dot_in_name_is_allowed(self) -> None:
+        """Test that legitimate folder names with .. substring are allowed."""
+        json_str = '[{"file": "article.md", "folder": "News..Updates"}]'
+        instructions = parse_json_categorization(json_str)
+        assert len(instructions) == 1
+        assert instructions[0].category == "News..Updates"

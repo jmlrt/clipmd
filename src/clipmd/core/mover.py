@@ -144,21 +144,17 @@ def parse_json_categorization(content: str) -> list[MoveInstruction]:
         if not isinstance(category, str):
             raise ValueError(f"Item {i}: 'folder' must be a string, got {type(category).__name__}")
 
-        # Validate filename: must be basename, end with .md, no path traversal
-        if "/" in filename or "\\" in filename or ".." in filename:
+        # Validate filename: must be basename, end with .md, no path separators
+        if "/" in filename or "\\" in filename:
             raise ValueError(
-                f"Item {i}: 'file' must be a basename (no path separators or traversal): {filename}"
+                f"Item {i}: 'file' must be a basename (no path separators): {filename}"
             )
         if not filename.endswith(".md"):
             raise ValueError(f"Item {i}: 'file' must end with .md: {filename}")
 
-        # Validate folder: no path separators, no path traversal (unless TRASH)
-        if category.upper() != "TRASH" and (
-            "/" in category or "\\" in category or ".." in category
-        ):
-            raise ValueError(
-                f"Item {i}: 'folder' must not contain path separators or traversal: {category}"
-            )
+        # Validate folder: no path separators (unless TRASH)
+        if category.upper() != "TRASH" and ("/" in category or "\\" in category):
+            raise ValueError(f"Item {i}: 'folder' must not contain path separators: {category}")
 
         instructions.append(
             MoveInstruction(
