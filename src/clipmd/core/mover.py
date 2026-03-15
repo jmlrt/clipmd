@@ -112,13 +112,9 @@ def parse_json_categorization(content: str) -> list[MoveInstruction]:
 
     Use "TRASH" as folder to send files to trash.
 
-    Validates:
-    - file: must be basename (no path separators), end with .md, no path traversal
-    - folder: no path separators, no path traversal, no absolute paths
-
     Raises:
-        ValueError: If JSON is invalid, missing required keys, fields have wrong types,
-                    or contain invalid values (path traversal, separators, etc.).
+        ValueError: If JSON is invalid, missing required keys, or values contain
+                    path separators or traversal sequences.
     """
     try:
         data = json.loads(content)
@@ -135,32 +131,14 @@ def parse_json_categorization(content: str) -> list[MoveInstruction]:
         if "file" not in item or "folder" not in item:
             raise ValueError(f"Item {i} missing required keys: 'file' and 'folder'")
 
-        filename = item["file"]
-        category = item["folder"]
+        filename = str(item["file"]).strip()
+        category = str(item["folder"]).strip()
 
-        # Validate field types
-        if not isinstance(filename, str):
-            raise ValueError(f"Item {i}: 'file' must be a string, got {type(filename).__name__}")
-        if not isinstance(category, str):
-            raise ValueError(f"Item {i}: 'folder' must be a string, got {type(category).__name__}")
-
-        # Strip whitespace
-        filename = filename.strip()
-        category = category.strip()
-
-        # Reject empty values
-        if not filename:
-            raise ValueError(f"Item {i}: 'file' must not be empty or whitespace-only")
-        if not category:
-            raise ValueError(f"Item {i}: 'folder' must not be empty or whitespace-only")
-
-        # Validate filename: must be basename, end with .md, no path separators
+        # Validate filename: must be basename (no path separators)
         if "/" in filename or "\\" in filename:
             raise ValueError(
                 f"Item {i}: 'file' must be a basename (no path separators): {filename}"
             )
-        if not filename.endswith(".md"):
-            raise ValueError(f"Item {i}: 'file' must end with .md: {filename}")
 
         # Validate folder: must match same pattern as plain-text parser (unless TRASH)
         # Pattern: [A-Za-z0-9_-]+ — letters, digits, underscores, hyphens only
