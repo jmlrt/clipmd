@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `move --from-json`: Accept JSON categorization file for schema-constrained round-trip with `extract --format json`
 - Domain rules system for automatic article pre-categorization
   - Configure in `config.yaml` with `domain_rules: {domain: folder}` mapping
   - `extract` command automatically applies rules and displays suggestions with → notation

@@ -6,45 +6,6 @@ Known issues, planned features, and improvements for `clipmd`.
 
 ## Features
 
-### extract: `--format json` and move: `--from-json`
-
-**Priority**: CRITICAL (essential for unattended triage workflow)
-
-**Needed for**: Full automation of triage workflow without manual filename parsing
-
-The unattended triage round-trip requires robust I/O between clipmd and LLM:
-
-1. **extract** produces article metadata (currently text format with truncated filenames)
-2. **LLM categorizes** articles and produces categorization decisions
-3. **move** processes decisions and reorganizes files
-
-**Current limitation**: Text format requires filename matching and parsing, which is
-fragile when filenames are truncated or have special characters.
-
-**Proposed solution**: Add JSON I/O mode for schema-constrained round-trip:
-
-```bash
-# Extract to JSON with full filenames
-clipmd extract /path/to/Clippings/ --format json > articles.json
-
-# Claude reads articles.json, outputs categorization.json:
-# [{"file": "exact-full-filename.md", "folder": "Dev-Tools"}, ...]
-
-# Move from JSON (exact filename matching, no parsing)
-clipmd move --from-json /path/categorization.json
-```
-
-**Benefits for unattended workflow**:
-- Full filenames preserved (no truncation in LLM prompt)
-- Schema-constrained output (LLM can't produce malformed decisions)
-- Eliminates fragile text parsing in move command
-- Enables fully automated workflows without manual intervention
-
-**Implementation note**: The existing plain-text format remains the default;
-`--format json` is opt-in. Both formats coexist for backward compatibility.
-
----
-
 ## Configuration Improvements (Deferred from PR #7)
 
 These items were identified during config refactoring (PR #7) but deferred

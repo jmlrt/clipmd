@@ -611,3 +611,176 @@ Content.
 
         # File should be trashed
         assert not article.exists()
+
+
+class TestMoveFromJson:
+    """Tests for move command with --from-json option."""
+
+    def test_from_json_basic_move(self, tmp_path: Path) -> None:
+        """Test basic move from JSON file."""
+        # Create article
+        article = tmp_path / "20240115-Article.md"
+        article.write_text("""---
+title: Test Article
+source: https://example.com/page
+---
+
+Content here.
+""")
+
+        # Create JSON categorization file
+        json_file = tmp_path / "categorization.json"
+        json_file.write_text('[{"file": "20240115-Article.md", "folder": "Tech"}]')
+
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                "move",
+                "--from-json",
+                str(json_file),
+                "--source-dir",
+                str(tmp_path),
+                "--no-cache-update",
+            ],
+        )
+        assert result.exit_code == 0
+        assert "moved" in result.output.lower()
+
+        # Check file was moved
+        assert not article.exists()
+        assert (tmp_path / "Tech" / "20240115-Article.md").exists()
+
+    def test_from_json_multiple_moves(self, tmp_path: Path) -> None:
+        """Test moving multiple files from JSON."""
+        # Create articles
+        for i in range(3):
+            article = tmp_path / f"2024011{i + 5}-Article-{i}.md"
+            article.write_text(f"---\ntitle: Article {i}\n---\nContent {i}.")
+
+        json_file = tmp_path / "categorization.json"
+        json_file.write_text(
+            "["
+            '{"file": "20240115-Article-0.md", "folder": "Tech"},'
+            '{"file": "20240116-Article-1.md", "folder": "Science"},'
+            '{"file": "20240117-Article-2.md", "folder": "Tech"}'
+            "]"
+        )
+
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                "move",
+                "--from-json",
+                str(json_file),
+                "--source-dir",
+                str(tmp_path),
+                "--no-cache-update",
+            ],
+        )
+        assert result.exit_code == 0
+        assert "3 moved" in result.output
+
+        # Check files were moved
+        assert (tmp_path / "Tech" / "20240115-Article-0.md").exists()
+        assert (tmp_path / "Science" / "20240116-Article-1.md").exists()
+        assert (tmp_path / "Tech" / "20240117-Article-2.md").exists()
+
+    def test_from_json_with_trash(self, tmp_path: Path) -> None:
+        """Test TRASH category in JSON."""
+        article = tmp_path / "20240115-Duplicate.md"
+        article.write_text("---\ntitle: Duplicate\n---\nContent.")
+
+        json_file = tmp_path / "categorization.json"
+        json_file.write_text('[{"file": "20240115-Duplicate.md", "folder": "TRASH"}]')
+
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                "move",
+                "--from-json",
+                str(json_file),
+                "--source-dir",
+                str(tmp_path),
+                "--no-cache-update",
+            ],
+        )
+        assert result.exit_code == 0
+        assert "Trash" in result.output or "trashed" in result.output.lower()
+
+        # File should be gone
+        assert not article.exists()
+
+    def test_from_json_dry_run(self, tmp_path: Path) -> None:
+        """Test --from-json with --dry-run."""
+        article = tmp_path / "20240115-Article.md"
+        article.write_text("---\ntitle: Test\n---\nContent.")
+
+        json_file = tmp_path / "categorization.json"
+        json_file.write_text('[{"file": "20240115-Article.md", "folder": "Tech"}]')
+
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            ["move", "--from-json", str(json_file), "--dry-run", "--source-dir", str(tmp_path)],
+        )
+        assert result.exit_code == 0
+        assert "Dry run" in result.output
+        assert "Would move" in result.output
+
+        # File should not be moved
+        assert article.exists()
+
+    def test_both_positional_and_from_json_error(self, tmp_path: Path) -> None:
+        """Test that using both positional arg and --from-json raises error."""
+        cat_file = tmp_path / "categorization.txt"
+        cat_file.write_text("1. Tech - article.md\n")
+
+        json_file = tmp_path / "categorization.json"
+        json_file.write_text('[{"file": "article.md", "folder": "Tech"}]')
+
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            ["move", str(cat_file), "--from-json", str(json_file), "--source-dir", str(tmp_path)],
+        )
+        assert result.exit_code != 0
+        assert "Cannot use both" in result.output
+
+    def test_neither_positional_nor_from_json_error(self, tmp_path: Path) -> None:
+        """Test that using neither positional arg nor --from-json raises error."""
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            ["move", "--source-dir", str(tmp_path)],
+        )
+        assert result.exit_code != 0
+        assert "Provide a categorization file or --from-json" in result.output
+
+    def test_from_json_invalid_json_error(self, tmp_path: Path) -> None:
+        """Test that invalid JSON in file is handled."""
+        json_file = tmp_path / "categorization.json"
+        json_file.write_text('{"invalid": json}')  # Invalid JSON
+
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            ["move", "--from-json", str(json_file), "--source-dir", str(tmp_path)],
+        )
+        assert result.exit_code == 1
+        assert "Error:" in result.output
+
+    def test_from_json_missing_keys_error(self, tmp_path: Path) -> None:
+        """Test that JSON with missing required keys is handled."""
+        json_file = tmp_path / "categorization.json"
+        json_file.write_text('[{"file": "article.md"}]')  # Missing 'folder' key
+
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            ["move", "--from-json", str(json_file), "--source-dir", str(tmp_path)],
+        )
+        assert result.exit_code == 1
+        assert "Error:" in result.output

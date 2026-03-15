@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 import shutil
 from dataclasses import dataclass, field
@@ -99,6 +100,47 @@ def parse_categorization_file(content: str) -> list[MoveInstruction]:
                     is_trash=is_trash,
                 )
             )
+
+    return instructions
+
+
+def parse_json_categorization(content: str) -> list[MoveInstruction]:
+    """Parse a JSON categorization into move instructions.
+
+    Expected format:
+        [{"file": "filename.md", "folder": "Category"}, ...]
+
+    Use "TRASH" as folder to send files to trash.
+
+    Raises:
+        ValueError: If JSON is invalid or missing required keys.
+    """
+    try:
+        data = json.loads(content)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Invalid JSON: {e}") from e
+
+    if not isinstance(data, list):
+        raise ValueError("JSON must be a list of objects")
+
+    instructions = []
+    for i, item in enumerate(data, start=1):
+        if not isinstance(item, dict):
+            raise ValueError(f"Item {i} must be an object, got {type(item).__name__}")
+        if "file" not in item or "folder" not in item:
+            raise ValueError(f"Item {i} missing required keys: 'file' and 'folder'")
+
+        filename = item["file"]
+        category = item["folder"]
+        instructions.append(
+            MoveInstruction(
+                index=i,
+                category=category,
+                filename=filename,
+                line_number=i,
+                is_trash=category.upper() == "TRASH",
+            )
+        )
 
     return instructions
 
