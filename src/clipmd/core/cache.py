@@ -412,42 +412,47 @@ class FilterResult:
 
     filtered_urls: list[str]
     skipped_urls: list[str] = field(default_factory=list)
+    removed_urls: list[str] = field(default_factory=list)
 
 
 def filter_duplicate_urls(
     urls: list[str],
     config: Config,
-    skip_removed: bool = False,
 ) -> FilterResult:
     """Filter URLs already in cache.
 
     Args:
         urls: List of URLs to filter.
         config: Application configuration.
-        skip_removed: If True, also skip URLs marked as removed (for RSS feeds).
-                     If False, only skip active URLs (for regular fetches).
 
     Returns:
-        FilterResult with filtered and skipped URLs.
+        FilterResult with filtered, skipped, and removed URLs.
     """
     cache_path = config.cache
     cache = load_cache(cache_path)
 
     filtered_urls = []
     skipped_urls = []
+    removed_urls = []
 
     for url in urls:
-        # Use has_url() if skip_removed=True (RSS feeds shouldn't re-download trashed articles)
-        # Use has_active_url() if skip_removed=False (regular fetches can re-fetch removed URLs)
-        check_func = cache.has_url if skip_removed else cache.has_active_url
-        if check_func(url):
-            skipped_urls.append(url)
+        # First check if URL exists at all (active or removed)
+        if cache.has_url(url):
+            # URL exists in cache; check if it's active
+            if cache.has_active_url(url):
+                # URL is active - skip it
+                skipped_urls.append(url)
+            else:
+                # URL is removed - track separately
+                removed_urls.append(url)
         else:
+            # New URL - filter it for fetching
             filtered_urls.append(url)
 
     return FilterResult(
         filtered_urls=filtered_urls,
         skipped_urls=skipped_urls,
+        removed_urls=removed_urls,
     )
 
 

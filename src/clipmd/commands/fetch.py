@@ -188,12 +188,24 @@ def fetch_command(
         if output_format == "text":
             console.print("Cache updated.")
 
-    # Clear URL file only if cache was successfully updated (atomic operation)
-    if clear_after and url_file and not dry_run and cache_updated and not stats.errors:
+    # Clear URL file after fetch (partial or full success)
+    if clear_after and url_file and not dry_run and (cache_updated or stats.errors):
         try:
-            url_file.write_text("", encoding="utf-8")
-            if output_format == "text":
-                console.print(f"Cleared: {url_file}")
+            if stats.errors:
+                # Partial failure: mark failed URLs with [KO] prefix, clear successful ones
+                failed_urls = {url for url, _ in stats.errors}
+                ko_lines = "\n".join(f"[KO] {url}" for url in failed_urls)
+                url_file.write_text(ko_lines + "\n" if ko_lines else "", encoding="utf-8")
+                if output_format == "text":
+                    console.print(
+                        f"Cleared {stats.saved} URLs. "
+                        f"Flagged {len(stats.errors)} failed URLs in: {url_file}"
+                    )
+            else:
+                # Full success: clear the file entirely
+                url_file.write_text("", encoding="utf-8")
+                if output_format == "text":
+                    console.print(f"Cleared: {url_file}")
         except OSError as e:
-            console.print(f"[red]Failed to clear URL file:[/red] {e}")
+            console.print(f"[red]Failed to update URL file:[/red] {e}")
             raise SystemExit(1) from e

@@ -54,6 +54,7 @@ class ExtractionResult:
     folders: list[str] = field(default_factory=list)
     articles: list[ArticleMetadata] = field(default_factory=list)
     errors: list[tuple[Path, str]] = field(default_factory=list)
+    skipped: list[tuple[Path, str]] = field(default_factory=list)
 
 
 def extract_article_metadata(
@@ -94,6 +95,11 @@ def extract_article_metadata(
         parsed = parse_frontmatter(content)
     except Exception as e:
         metadata.error = f"Could not parse frontmatter: {e}"
+        return metadata
+
+    # Check if file has frontmatter
+    if not parsed.has_frontmatter:
+        metadata.error = "__no_frontmatter__"
         return metadata
 
     # Extract fields
@@ -223,7 +229,10 @@ def extract_metadata(
             include_stats=include_stats,
         )
 
-        if metadata.error:
+        if metadata.error == "__no_frontmatter__":
+            result.skipped.append((md_file, "no frontmatter"))
+            continue
+        elif metadata.error:
             result.errors.append((md_file, metadata.error))
             continue
 

@@ -187,6 +187,10 @@ def sanitize_title_for_filename(title: str) -> str:
     Returns:
         Sanitized title suitable for filename.
     """
+    # Transliterate accented chars to base equivalents (é→e, ç→c, ë→e, etc.)
+    normalized = unicodedata.normalize("NFD", title)
+    title = "".join(c for c in normalized if unicodedata.category(c) != "Mn")
+
     # Remove special characters, keep alphanumeric and spaces
     cleaned = re.sub(r"[^\w\s-]", "", title)
     # Replace spaces with dashes

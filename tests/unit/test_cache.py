@@ -446,7 +446,6 @@ class TestFilterDuplicateUrls:
         result = filter_duplicate_urls(
             ["https://example.com/article", "https://example.com/new"],
             config,
-            skip_removed=False,
         )
         assert "https://example.com/article" in result.skipped_urls
         assert "https://example.com/new" in result.filtered_urls
@@ -454,7 +453,7 @@ class TestFilterDuplicateUrls:
     def test_removed_url_not_skipped_when_skip_removed_false(
         self, tmp_path: Path, monkeypatch
     ) -> None:
-        """Removed URLs are NOT skipped when skip_removed=False (regular fetch)."""
+        """Removed URLs are separated into removed_urls list."""
         monkeypatch.chdir(tmp_path)
         config = self._make_config(tmp_path)
 
@@ -468,14 +467,14 @@ class TestFilterDuplicateUrls:
         result = filter_duplicate_urls(
             ["https://example.com/article"],
             config,
-            skip_removed=False,
         )
-        # Removed entry should pass through for regular fetches
-        assert "https://example.com/article" in result.filtered_urls
+        # Removed entry should be in removed_urls list
+        assert "https://example.com/article" in result.removed_urls
+        assert result.filtered_urls == []
         assert result.skipped_urls == []
 
     def test_removed_url_skipped_when_skip_removed_true(self, tmp_path: Path, monkeypatch) -> None:
-        """Removed URLs ARE skipped when skip_removed=True (RSS feeds)."""
+        """Removed URLs are always separated into removed_urls list."""
         monkeypatch.chdir(tmp_path)
         config = self._make_config(tmp_path)
 
@@ -489,11 +488,11 @@ class TestFilterDuplicateUrls:
         result = filter_duplicate_urls(
             ["https://example.com/article"],
             config,
-            skip_removed=True,
         )
-        # Removed entry should be skipped for RSS
-        assert "https://example.com/article" in result.skipped_urls
+        # Removed entry should be in removed_urls list
+        assert "https://example.com/article" in result.removed_urls
         assert result.filtered_urls == []
+        assert result.skipped_urls == []
 
     def test_absolute_cache_path_used_directly(self, tmp_path: Path, monkeypatch) -> None:
         """Absolute cache path is used as-is, not joined to vault."""
@@ -513,7 +512,6 @@ class TestFilterDuplicateUrls:
         result = filter_duplicate_urls(
             ["https://example.com/article"],
             config,
-            skip_removed=False,
         )
         # Should have read the absolute-path cache and found the entry
         assert "https://example.com/article" in result.skipped_urls

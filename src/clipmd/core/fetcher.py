@@ -537,6 +537,7 @@ class FetchOrchestrationResult:
     process_result: ProcessResult
     fetch_results: list[FetchResult] = field(default_factory=list)
     skipped_urls: list[str] = field(default_factory=list)
+    removed_urls: list[str] = field(default_factory=list)
     feed_entry_count: int | None = None
     rss_error: str | None = None
 
@@ -578,6 +579,7 @@ async def orchestrate_fetch(
             process_result=ProcessResult(stats=FetchStats(total=0)),
             fetch_results=[],
             skipped_urls=[],
+            removed_urls=[],
         )
 
     # Handle RSS feeds
@@ -589,6 +591,7 @@ async def orchestrate_fetch(
                 process_result=ProcessResult(stats=FetchStats(total=0)),
                 fetch_results=[],
                 skipped_urls=[],
+                removed_urls=[],
             )
         try:
             feed_urls = await fetch_rss_feed(all_urls[0], config, rss_limit)
@@ -600,16 +603,18 @@ async def orchestrate_fetch(
                 process_result=ProcessResult(stats=FetchStats(total=0)),
                 fetch_results=[],
                 skipped_urls=[],
+                removed_urls=[],
                 rss_error=f"{feed_url}: {e}",
             )
 
     # Filter duplicates
     skipped_urls = []
+    removed_urls = []
     if check_duplicates:
-        # For RSS feeds, skip removed URLs to avoid re-downloading trashed articles
-        # For regular fetches, allow re-fetching of previously removed URLs
-        filter_result = filter_duplicate_urls(all_urls, config, skip_removed=rss)
+        # Always skip removed URLs to avoid re-downloading trashed articles
+        filter_result = filter_duplicate_urls(all_urls, config)
         skipped_urls = filter_result.skipped_urls
+        removed_urls = filter_result.removed_urls
         all_urls = filter_result.filtered_urls
 
     if not all_urls:
@@ -617,6 +622,7 @@ async def orchestrate_fetch(
             process_result=ProcessResult(stats=FetchStats(total=0)),
             fetch_results=[],
             skipped_urls=skipped_urls,
+            removed_urls=removed_urls,
             feed_entry_count=feed_entry_count,
         )
 
@@ -635,5 +641,6 @@ async def orchestrate_fetch(
         process_result=process_result,
         fetch_results=results,
         skipped_urls=skipped_urls,
+        removed_urls=removed_urls,
         feed_entry_count=feed_entry_count,
     )

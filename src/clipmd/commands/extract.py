@@ -82,6 +82,12 @@ def extract_command(
         include_folders=folders,
     )
 
+    # Display skipped files in verbose mode
+    if cli_ctx.verbose > 0 and result.skipped:
+        console.print("[dim]Skipped files (no frontmatter):[/dim]")
+        for file_path, reason in result.skipped:
+            console.print(f"  {file_path.name}: {reason}")
+
     # Format output
     if output_format == "markdown":
         formatted = extractor.format_markdown(result, include_stats=include_stats)
