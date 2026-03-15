@@ -25,6 +25,9 @@ from clipmd.core.sanitizer import extract_domain
 if TYPE_CHECKING:
     from clipmd.config import Config
 
+# Sentinel error code for files without frontmatter (not a real error, just a skip indicator)
+_NO_FRONTMATTER_ERROR = "__no_frontmatter__"
+
 
 @dataclass
 class ArticleMetadata:
@@ -99,7 +102,7 @@ def extract_article_metadata(
 
     # Check if file has frontmatter
     if not parsed.has_frontmatter:
-        metadata.error = "__no_frontmatter__"
+        metadata.error = _NO_FRONTMATTER_ERROR
         return metadata
 
     # Extract fields
@@ -229,7 +232,7 @@ def extract_metadata(
             include_stats=include_stats,
         )
 
-        if metadata.error == "__no_frontmatter__":
+        if metadata.error == _NO_FRONTMATTER_ERROR:
             result.skipped.append((md_file, "no frontmatter"))
             continue
         elif metadata.error:
