@@ -258,19 +258,19 @@ class TestParseJsonCategorization:
     def test_folder_with_path_separator_raises_error(self) -> None:
         """Test that folder with path separator raises ValueError."""
         json_str = '[{"file": "article.md", "folder": "Tech/News"}]'
-        with pytest.raises(ValueError, match="'folder' must not contain path separators"):
+        with pytest.raises(ValueError, match="must contain only letters"):
             parse_json_categorization(json_str)
 
     def test_folder_with_path_traversal_raises_error(self) -> None:
         """Test that folder with path traversal (..) raises ValueError."""
         json_str = '[{"file": "article.md", "folder": "../Outside"}]'
-        with pytest.raises(ValueError, match="'folder' must not contain path separators"):
+        with pytest.raises(ValueError, match="must contain only letters"):
             parse_json_categorization(json_str)
 
     def test_folder_absolute_path_raises_error(self) -> None:
         """Test that absolute folder path raises ValueError."""
         json_str = '[{"file": "article.md", "folder": "/etc/passwd"}]'
-        with pytest.raises(ValueError, match="'folder' must not contain path separators"):
+        with pytest.raises(ValueError, match="must contain only letters"):
             parse_json_categorization(json_str)
 
     def test_trash_folder_bypasses_path_validation(self) -> None:
@@ -287,23 +287,23 @@ class TestParseJsonCategorization:
         assert len(instructions) == 1
         assert instructions[0].filename == "my..notes.md"
 
-    def test_folder_with_double_dot_in_name_is_allowed(self) -> None:
-        """Test that legitimate folder names with .. substring are allowed."""
-        json_str = '[{"file": "article.md", "folder": "News..Updates"}]'
-        instructions = parse_json_categorization(json_str)
-        assert len(instructions) == 1
-        assert instructions[0].category == "News..Updates"
+    def test_folder_with_invalid_chars_raises_error(self) -> None:
+        """Test that folder names with invalid characters are rejected."""
+        for invalid_folder in ["News.Updates", "Tech News", "cat@home", "News..Updates"]:
+            json_str = f'[{{"file": "article.md", "folder": "{invalid_folder}"}}]'
+            with pytest.raises(ValueError, match="must contain only letters"):
+                parse_json_categorization(json_str)
 
     def test_folder_dot_raises_error(self) -> None:
         """Test that '.' as folder name is rejected."""
         json_str = '[{"file": "article.md", "folder": "."}]'
-        with pytest.raises(ValueError, match="must not be a relative path reference"):
+        with pytest.raises(ValueError, match="must contain only letters"):
             parse_json_categorization(json_str)
 
     def test_folder_dotdot_raises_error(self) -> None:
         """Test that '..' as folder name is rejected."""
         json_str = '[{"file": "article.md", "folder": ".."}]'
-        with pytest.raises(ValueError, match="must not be a relative path reference"):
+        with pytest.raises(ValueError, match="must contain only letters"):
             parse_json_categorization(json_str)
 
     def test_file_with_leading_trailing_whitespace_is_stripped(self) -> None:

@@ -162,14 +162,13 @@ def parse_json_categorization(content: str) -> list[MoveInstruction]:
         if not filename.endswith(".md"):
             raise ValueError(f"Item {i}: 'file' must end with .md: {filename}")
 
-        # Validate folder: no path separators, no relative path references (unless TRASH)
-        if category.upper() != "TRASH":
-            if "/" in category or "\\" in category:
-                raise ValueError(f"Item {i}: 'folder' must not contain path separators: {category}")
-            if category in (".", ".."):
-                raise ValueError(
-                    f"Item {i}: 'folder' must not be a relative path reference ({category})"
-                )
+        # Validate folder: must match same pattern as plain-text parser (unless TRASH)
+        # Pattern: [A-Za-z0-9_-]+ — letters, digits, underscores, hyphens only
+        if category.upper() != "TRASH" and not re.fullmatch(r"[A-Za-z0-9_-]+", category):
+            raise ValueError(
+                f"Item {i}: 'folder' must contain only letters, digits, underscores, "
+                f"and hyphens (got: {category!r})"
+            )
 
         instructions.append(
             MoveInstruction(

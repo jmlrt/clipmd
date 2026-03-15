@@ -219,8 +219,6 @@ def extract_metadata(
     # Find all markdown files in root (not in subfolders)
     md_files = sorted(discover_markdown_files(path, config, recursive=False))
 
-    result.total = len(md_files)
-
     # Extract metadata from each file
     for idx, md_file in enumerate(md_files, start=1):
         metadata = extract_article_metadata(
@@ -244,6 +242,9 @@ def extract_metadata(
             metadata.suggested_folder = match_domain(metadata.domain, config.domain_rules)
 
         result.articles.append(metadata)
+
+    # Total reflects extracted articles, not all scanned files
+    result.total = len(result.articles)
 
     return result
 
