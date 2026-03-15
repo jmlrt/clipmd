@@ -293,3 +293,15 @@ class TestParseJsonCategorization:
         instructions = parse_json_categorization(json_str)
         assert len(instructions) == 1
         assert instructions[0].category == "News..Updates"
+
+    def test_folder_dot_raises_error(self) -> None:
+        """Test that '.' as folder name is rejected."""
+        json_str = '[{"file": "article.md", "folder": "."}]'
+        with pytest.raises(ValueError, match="must not be a relative path reference"):
+            parse_json_categorization(json_str)
+
+    def test_folder_dotdot_raises_error(self) -> None:
+        """Test that '..' as folder name is rejected."""
+        json_str = '[{"file": "article.md", "folder": ".."}]'
+        with pytest.raises(ValueError, match="must not be a relative path reference"):
+            parse_json_categorization(json_str)
