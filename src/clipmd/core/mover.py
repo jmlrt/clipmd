@@ -144,6 +144,16 @@ def parse_json_categorization(content: str) -> list[MoveInstruction]:
         if not isinstance(category, str):
             raise ValueError(f"Item {i}: 'folder' must be a string, got {type(category).__name__}")
 
+        # Strip whitespace
+        filename = filename.strip()
+        category = category.strip()
+
+        # Reject empty values
+        if not filename:
+            raise ValueError(f"Item {i}: 'file' must not be empty or whitespace-only")
+        if not category:
+            raise ValueError(f"Item {i}: 'folder' must not be empty or whitespace-only")
+
         # Validate filename: must be basename, end with .md, no path separators
         if "/" in filename or "\\" in filename:
             raise ValueError(

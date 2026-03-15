@@ -305,3 +305,49 @@ class TestParseJsonCategorization:
         json_str = '[{"file": "article.md", "folder": ".."}]'
         with pytest.raises(ValueError, match="must not be a relative path reference"):
             parse_json_categorization(json_str)
+
+    def test_file_with_leading_trailing_whitespace_is_stripped(self) -> None:
+        """Test that whitespace is stripped from file names."""
+        json_str = '[{"file": "  article.md  ", "folder": "Tech"}]'
+        instructions = parse_json_categorization(json_str)
+        assert len(instructions) == 1
+        assert instructions[0].filename == "article.md"
+
+    def test_folder_with_leading_trailing_whitespace_is_stripped(self) -> None:
+        """Test that whitespace is stripped from folder names."""
+        json_str = '[{"file": "article.md", "folder": "  Tech  "}]'
+        instructions = parse_json_categorization(json_str)
+        assert len(instructions) == 1
+        assert instructions[0].category == "Tech"
+
+    def test_empty_file_raises_error(self) -> None:
+        """Test that empty file value is rejected."""
+        json_str = '[{"file": "", "folder": "Tech"}]'
+        with pytest.raises(ValueError, match="'file' must not be empty"):
+            parse_json_categorization(json_str)
+
+    def test_whitespace_only_file_raises_error(self) -> None:
+        """Test that whitespace-only file value is rejected."""
+        json_str = '[{"file": "   ", "folder": "Tech"}]'
+        with pytest.raises(ValueError, match="'file' must not be empty"):
+            parse_json_categorization(json_str)
+
+    def test_empty_folder_raises_error(self) -> None:
+        """Test that empty folder value is rejected."""
+        json_str = '[{"file": "article.md", "folder": ""}]'
+        with pytest.raises(ValueError, match="'folder' must not be empty"):
+            parse_json_categorization(json_str)
+
+    def test_whitespace_only_folder_raises_error(self) -> None:
+        """Test that whitespace-only folder value is rejected."""
+        json_str = '[{"file": "article.md", "folder": "   "}]'
+        with pytest.raises(ValueError, match="'folder' must not be empty"):
+            parse_json_categorization(json_str)
+
+    def test_trash_with_whitespace_is_recognized(self) -> None:
+        """Test that TRASH with surrounding whitespace is still recognized."""
+        json_str = '[{"file": "article.md", "folder": "  TRASH  "}]'
+        instructions = parse_json_categorization(json_str)
+        assert len(instructions) == 1
+        assert instructions[0].is_trash is True
+        assert instructions[0].category == "TRASH"
