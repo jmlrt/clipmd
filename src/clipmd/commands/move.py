@@ -133,8 +133,7 @@ def move_command(
         try:
             instructions = mover.parse_json_categorization(file_content)
         except ValueError as e:
-            console.print(f"[red]Error:[/red] {e}")
-            raise SystemExit(1) from e
+            raise click.ClickException(str(e)) from e
     else:
         file_content = categorization_file.read_text(encoding="utf-8")  # type: ignore[union-attr]
         instructions = mover.parse_categorization_file(file_content)
