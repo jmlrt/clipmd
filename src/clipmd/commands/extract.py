@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import click
@@ -11,6 +12,7 @@ from clipmd.context import Context
 from clipmd.core import extractor
 
 console = Console()
+stderr_console = Console(file=sys.stderr)
 
 
 @click.command("extract")
@@ -82,11 +84,11 @@ def extract_command(
         include_folders=folders,
     )
 
-    # Display skipped files in verbose mode
+    # Display skipped files in verbose mode (to stderr to not pollute stdout)
     if cli_ctx.verbose > 0 and result.skipped:
-        console.print("[dim]Skipped files (no frontmatter):[/dim]")
+        stderr_console.print("[dim]Skipped files (no frontmatter):[/dim]")
         for file_path, reason in result.skipped:
-            console.print(f"  {file_path.name}: {reason}")
+            stderr_console.print(f"  {file_path.name}: {reason}")
 
     # Format output
     if output_format == "markdown":

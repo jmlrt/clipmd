@@ -192,9 +192,10 @@ def fetch_command(
     if clear_after and url_file and not dry_run and (cache_updated or stats.errors):
         try:
             if stats.errors:
-                # Partial failure: mark failed URLs with [KO] prefix, clear successful ones
-                failed_urls = {url for url, _ in stats.errors}
-                ko_lines = "\n".join(f"[KO] {url}" for url in failed_urls)
+                # Partial failure: mark failed URLs with inline comment, preserve order
+                # Keep failed URLs in original order from stats.errors
+                failed_urls = [url for url, _ in stats.errors]
+                ko_lines = "\n".join(f"{url} # [KO] - failed fetch" for url in failed_urls)
                 url_file.write_text(ko_lines + "\n" if ko_lines else "", encoding="utf-8")
                 if output_format == "text":
                     console.print(

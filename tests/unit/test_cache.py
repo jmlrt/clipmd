@@ -450,9 +450,7 @@ class TestFilterDuplicateUrls:
         assert "https://example.com/article" in result.skipped_urls
         assert "https://example.com/new" in result.filtered_urls
 
-    def test_removed_url_not_skipped_when_skip_removed_false(
-        self, tmp_path: Path, monkeypatch
-    ) -> None:
+    def test_removed_url_separated_into_removed_urls(self, tmp_path: Path, monkeypatch) -> None:
         """Removed URLs are separated into removed_urls list."""
         monkeypatch.chdir(tmp_path)
         config = self._make_config(tmp_path)
@@ -473,8 +471,10 @@ class TestFilterDuplicateUrls:
         assert result.filtered_urls == []
         assert result.skipped_urls == []
 
-    def test_removed_url_skipped_when_skip_removed_true(self, tmp_path: Path, monkeypatch) -> None:
-        """Removed URLs are always separated into removed_urls list."""
+    def test_removed_url_does_not_appear_in_filtered_urls(
+        self, tmp_path: Path, monkeypatch
+    ) -> None:
+        """Removed URLs are never in filtered_urls, always in removed_urls."""
         monkeypatch.chdir(tmp_path)
         config = self._make_config(tmp_path)
 
