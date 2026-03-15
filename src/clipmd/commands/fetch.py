@@ -181,27 +181,23 @@ def fetch_command(
 
     # Update cache
     stats = orch_result.process_result.stats
-    cache_updated = False
     if not dry_run and not no_cache_update and stats.saved > 0:
         cache.update_cache_after_fetch(orch_result.fetch_results, config)
-        cache_updated = True
         if output_format == "text":
             console.print("Cache updated.")
 
     # Clear URL file after fetch (partial or full success)
-    if clear_after and url_file and not dry_run and (cache_updated or stats.errors):
+    # Clear if we fetched anything (saved > 0 means we processed URLs and saved at least one)
+    # or if there were errors to persist
+    if clear_after and url_file and not dry_run and (stats.saved > 0 or stats.errors):
         try:
             if stats.errors:
                 # Partial failure: mark failed URLs with inline comment, preserve order
                 # Keep failed URLs in original order from stats.errors
-                failed_urls = [url for url, _ in stats.errors]
-                ko_lines = "\n".join(f"{url} # [KO] - failed fetch" for url in failed_urls)
+                ko_lines = "\n".join(f"{url} # [KO] - {error}" for url, error in stats.errors)
                 url_file.write_text(ko_lines + "\n" if ko_lines else "", encoding="utf-8")
                 if output_format == "text":
-                    console.print(
-                        f"Cleared {stats.saved} URLs. "
-                        f"Flagged {len(stats.errors)} failed URLs in: {url_file}"
-                    )
+                    console.print(f"Retained {len(stats.errors)} failed URLs in: {url_file}")
             else:
                 # Full success: clear the file entirely
                 url_file.write_text("", encoding="utf-8")
