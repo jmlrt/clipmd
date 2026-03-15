@@ -6,23 +6,6 @@ Known issues, planned features, and improvements for `clipmd`.
 
 ## Bug Fixes
 
-### move: `--source-dir` not auto-detected
-
-**Priority**: Low (reorganization workflow only)
-
-When articles are stored in a subdirectory (e.g. `Inbox/`), `clipmd move`
-now hints at the correct `--source-dir` value, but users still need to
-re-run with the flag explicitly.
-
-**Note**: Not applicable to standard triage workflow (triage processes
-Clippings/ root only). This affects subfolder-to-subfolder reorganization.
-
-**Proposed fix**: Auto-detect source directory from file paths in the
-categorization file so users never need to pass `--source-dir` manually.
-
----
-
-
 ### duplicates: cross-folder duplicates not actionable
 
 **Priority**: Low (reorganization workflow only)
@@ -69,18 +52,17 @@ When `fetch` encounters a URL in cache with `removed: true`:
 
 ---
 
-### fetch: JavaScript-gated pages saved as empty stubs
+### fetch: Log warning for JavaScript-gated pages
 
 **Priority**: Low
 
 `clipmd fetch` on JavaScript-gated pages (e.g. `x.com`) fetches the
 JS-disabled stub and saves it as a valid-looking `.md` file with
-`title: Untitled` and no content.
+`title: Untitled` and no content. User doesn't know they need to add content manually.
 
-**Proposed fix**: Detect stub content (heuristic: body contains
-"JavaScript is disabled" or content under ~200 chars) and either:
-1. Skip saving with a clear error message
-2. Save with `status: requires-manual-content` frontmatter and a warning
+**Proposed fix**: Detect stub content (heuristic: content under ~200 chars after extraction)
+and log a warning: `"Saved but may require manual content: <filename>"`. File is still saved,
+but user is flagged to verify content manually.
 
 ---
 
@@ -163,75 +145,6 @@ https://url-failing-2
 ---
 
 ## Features
-
-### fetch: auto-detect RSS feeds in URL files
-
-**Priority**: Very Low (YAGNI)
-
-When `clipmd fetch --file` processes a URL list, some entries may be
-RSS/Atom feed URLs. Currently they are fetched as HTML articles.
-
-**Status**: Users already have `--rss` flag for intentional feed fetching.
-Auto-detection would add complexity without clear benefit.
-
-**Recommendation**: Users should explicitly specify `--rss` for feeds in
-their config or command line. YAGNI: Don't implement auto-detection.
-
----
-
-### fetch: custom frontmatter template
-
-**Priority**: Very Low (YAGNI)
-
-The standard frontmatter template works well for most workflows.
-
-**Status**: No user requests for custom templates. Standard format is
-flexible enough. YAGNI: Don't implement unless clear use case emerges.
-
----
-
-### stats/report: report command
-
-**Priority**: Very Low (YAGNI)
-
-The existing `clipmd stats` command provides folder statistics and recommendations.
-
-**Status**: Feature request for formatted report, but `stats` already covers
-the use case. YAGNI: Use `clipmd stats` instead.
-
----
-
-### cache management commands
-
-**Priority**: Very Low (Phase 3+, advanced users only)
-
-Subcommands to inspect and maintain the URL cache.
-
-**Status**: Advanced functionality for power users. Not needed for standard
-triage workflow. Keep in backlog for future enhancement.
-
-```bash
-clipmd cache show     # Display cache statistics
-clipmd cache clean    # Remove entries for deleted files
-```
-
----
-
-### URLs export command
-
-**Priority**: Very Low (Phase 3+, nice-to-have)
-
-Export all article URLs from the vault.
-
-**Status**: Nice-to-have for data export. Not needed for triage workflow.
-Keep in backlog for future.
-
-```bash
-clipmd urls [--output PATH] [--format markdown|json|csv|plain]
-            [--include-removed] [--by-folder]
-```
-
----
 
 ### extract: `--format json` and move: `--from-json`
 
@@ -374,75 +287,3 @@ def remove_accents(text):
 
 **Related**: Fixes cache matching issue discovered 2026-03-15 where accented
 filenames in cache didn't match on-disk files due to inconsistent sanitization.
-
----
-
-## Refactoring
-
-### Consolidate formatting functions
-
-**Priority**: Medium
-
-13+ `format_*` functions are scattered across 7 modules
-(`preprocessor.py`, `extractor.py`, `stats.py`, `mover.py`,
-`duplicates.py`). `fetcher.py` already has its formatters in
-`core/formatters.py`.
-
-**Proposed**: Move all output formatting into `core/formatters.py` to
-ensure consistent styling and easier testing (~400 lines consolidated).
-
----
-
-### Extract cache operation helpers
-
-**Priority**: Medium
-
-Cache update logic is duplicated in `mover.py`
-(`_update_cache_after_moves`) and `trash.py`
-(`_update_cache_after_trash`). `fetcher.py` already delegates to
-`cache.update_cache_after_fetch()`.
-
-**Proposed**: Add `mark_file_as_trashed()` and `update_file_location()`
-helpers to `core/cache.py` (~100 lines of duplication removed).
-
----
-
-### Move config template out of `initializer.py`
-
-**Priority**: Medium
-
-`initializer.py` contains a 181-line `get_full_config()` function that
-returns a static YAML string — data masquerading as code.
-
-**Proposed**: Extract to `src/clipmd/config-template.yaml` and load from
-file, reducing `initializer.py` from ~270 to ~80 lines.
-
----
-
-### Move `find_duplicates()` to `duplicates.py`
-
-**Priority**: Low
-
-`preprocessor.py` contains a `find_duplicates()` function (43 lines) that
-belongs in `core/duplicates.py`.
-
----
-
-### Extract shared validator config loading
-
-**Priority**: Low
-
-Five functions in `validator.py` independently load config with the same
-pattern. Extract a `_get_or_load_config()` helper to remove ~30 lines of
-duplication.
-
----
-
-### Create `core/path_utils.py`
-
-**Priority**: Low
-
-Small filesystem utility functions are scattered across modules
-(`trash.py` has `expand_glob_patterns()`; `discovery.py` has file
-filtering helpers). Consolidate into a dedicated `core/path_utils.py`
-module.
