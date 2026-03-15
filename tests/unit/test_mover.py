@@ -212,3 +212,15 @@ class TestParseJsonCategorization:
         json_str = "[]"
         instructions = parse_json_categorization(json_str)
         assert instructions == []
+
+    def test_non_string_file_raises_error(self) -> None:
+        """Test that non-string file value raises ValueError."""
+        json_str = '[{"file": 123, "folder": "Tech"}]'
+        with pytest.raises(ValueError, match="'file' must be a string"):
+            parse_json_categorization(json_str)
+
+    def test_non_string_folder_raises_error(self) -> None:
+        """Test that non-string folder value raises ValueError."""
+        json_str = '[{"file": "article.md", "folder": 456}]'
+        with pytest.raises(ValueError, match="'folder' must be a string"):
+            parse_json_categorization(json_str)

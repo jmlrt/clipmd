@@ -113,7 +113,7 @@ def parse_json_categorization(content: str) -> list[MoveInstruction]:
     Use "TRASH" as folder to send files to trash.
 
     Raises:
-        ValueError: If JSON is invalid or missing required keys.
+        ValueError: If JSON is invalid, missing required keys, or fields have wrong types.
     """
     try:
         data = json.loads(content)
@@ -132,6 +132,13 @@ def parse_json_categorization(content: str) -> list[MoveInstruction]:
 
         filename = item["file"]
         category = item["folder"]
+
+        # Validate field types
+        if not isinstance(filename, str):
+            raise ValueError(f"Item {i}: 'file' must be a string, got {type(filename).__name__}")
+        if not isinstance(category, str):
+            raise ValueError(f"Item {i}: 'folder' must be a string, got {type(category).__name__}")
+
         instructions.append(
             MoveInstruction(
                 index=i,

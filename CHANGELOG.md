@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - `fetch` command no longer re-fetches manually removed URLs (always skips URLs marked as removed in cache)
-- `fetch --clear-after` now handles partial fetch failures by marking failed URLs with `[KO]` prefix instead of aborting
+- `fetch --clear-after` now handles partial fetch failures by marking failed URLs with `[KO]` suffix as inline comment instead of aborting
 - `extract` command now skips files without frontmatter (e.g., README.md, CLAUDE.md) and reports them in verbose mode
 - Filename sanitization now transliterates accented characters to ASCII equivalents (é→e, ç→c, ë→e, etc.)
 - `fetch` command no longer truncates long article titles in generated filenames
