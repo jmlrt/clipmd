@@ -150,7 +150,7 @@ def extract_metadata_from_html(html: str, url: str) -> dict:  # noqa: ARG001
     return metadata
 
 
-def extract_content_trafilatura(html: str, url: str) -> tuple[str, dict]:
+def extract_content_trafilatura(html: str, url: str) -> tuple[str | None, dict]:
     """Extract main content using trafilatura.
 
     Args:
@@ -158,39 +158,44 @@ def extract_content_trafilatura(html: str, url: str) -> tuple[str, dict]:
         url: Source URL.
 
     Returns:
-        Tuple of (markdown content, metadata dict).
+        Tuple of (markdown content or None on failure, metadata dict).
+        Returns (None, {}) if trafilatura fails (e.g., lxml OverflowError on Python 3.14+).
     """
-    # Extract with metadata
-    result = trafilatura.extract(
-        html,
-        url=url,
-        include_comments=False,
-        include_tables=True,
-        include_links=True,
-        output_format="markdown",
-    )
+    try:
+        # Extract with metadata
+        result = trafilatura.extract(
+            html,
+            url=url,
+            include_comments=False,
+            include_tables=True,
+            include_links=True,
+            output_format="markdown",
+        )
 
-    # Get metadata separately
-    metadata_result = trafilatura.extract(
-        html,
-        url=url,
-        output_format="json",
-    )
+        # Get metadata separately
+        metadata_result = trafilatura.extract(
+            html,
+            url=url,
+            output_format="json",
+        )
 
-    metadata = {}
-    if metadata_result:
-        try:
-            meta_json = json.loads(metadata_result)
-            metadata = {
-                "title": meta_json.get("title"),
-                "author": meta_json.get("author"),
-                "date": meta_json.get("date"),
-                "description": meta_json.get("description") or meta_json.get("excerpt"),
-            }
-        except json.JSONDecodeError:
-            pass
+        metadata = {}
+        if metadata_result:
+            try:
+                meta_json = json.loads(metadata_result)
+                metadata = {
+                    "title": meta_json.get("title"),
+                    "author": meta_json.get("author"),
+                    "date": meta_json.get("date"),
+                    "description": meta_json.get("description") or meta_json.get("excerpt"),
+                }
+            except json.JSONDecodeError:
+                pass
 
-    return result or "", metadata
+        return result or "", metadata
+    except OverflowError:
+        # lxml C extension incompatibility with Python 3.14+ (int too large to convert to C int)
+        return None, {}
 
 
 def html_to_markdown(html: str) -> str:
@@ -363,10 +368,14 @@ async def fetch_url(
     # Extract content
     if use_readability:
         content, metadata = extract_content_trafilatura(html, effective_url)
-        result.title = metadata.get("title")
-        result.author = metadata.get("author")
-        result.published = metadata.get("date")
-        result.description = metadata.get("description")
+        if content is not None:
+            result.title = metadata.get("title")
+            result.author = metadata.get("author")
+            result.published = metadata.get("date")
+            result.description = metadata.get("description")
+        else:
+            # Trafilatura failed (e.g., lxml OverflowError on Python 3.14+), fall back to markdownify
+            content = html_to_markdown(html)
     else:
         content = html_to_markdown(html)
         metadata = extract_metadata_from_html(html, effective_url)
