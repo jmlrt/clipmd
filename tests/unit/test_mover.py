@@ -9,6 +9,7 @@ import pytest
 from clipmd.core.mover import (
     MoveInstruction,
     _levenshtein_distance,
+    apply_domain_rules_fallback,
     find_suspicious_categories,
     parse_json_categorization,
     suggest_source_dir,
@@ -309,3 +310,167 @@ class TestParseJsonCategorization:
         assert len(instructions) == 1
         assert instructions[0].is_trash is True
         assert instructions[0].category == "TRASH"
+
+
+class TestApplyDomainRulesFallback:
+    """Tests for apply_domain_rules_fallback function."""
+
+    def test_no_rules_returns_empty(self, tmp_path: Path) -> None:
+        """Test that empty rules dict returns no instructions."""
+        from clipmd.config import Config
+
+        source_dir = tmp_path / "source"
+        source_dir.mkdir()
+        (source_dir / "article.md").write_text(
+            "---\nsource: https://example.com/article\n---\nContent"
+        )
+
+        config = Config(domain_rules={})
+        result = apply_domain_rules_fallback(source_dir, config, set())
+        assert result == []
+
+    def test_matches_domain_rule(self, tmp_path: Path) -> None:
+        """Test that unmapped articles matching domain rules are returned."""
+        from clipmd.config import Config
+
+        source_dir = tmp_path / "source"
+        source_dir.mkdir()
+        (source_dir / "article.md").write_text(
+            "---\nsource: https://github.com/user/repo\n---\nContent"
+        )
+
+        config = Config(domain_rules={"github.com": "Code"})
+        result = apply_domain_rules_fallback(source_dir, config, set())
+        assert len(result) == 1
+        assert result[0].filename == "article.md"
+        assert result[0].category == "Code"
+        assert result[0].line_number == -1  # Indicates fallback
+
+    def test_skips_mapped_files(self, tmp_path: Path) -> None:
+        """Test that files already in categorization are skipped."""
+        from clipmd.config import Config
+
+        source_dir = tmp_path / "source"
+        source_dir.mkdir()
+        (source_dir / "article.md").write_text(
+            "---\nsource: https://github.com/user/repo\n---\nContent"
+        )
+
+        config = Config(domain_rules={"github.com": "Code"})
+        result = apply_domain_rules_fallback(source_dir, config, {"article.md"})
+        assert result == []
+
+    def test_skips_ignored_files(self, tmp_path: Path) -> None:
+        """Test that configured ignored files are skipped."""
+        from clipmd.config import Config, SpecialFoldersConfig
+
+        source_dir = tmp_path / "source"
+        source_dir.mkdir()
+        (source_dir / "README.md").write_text(
+            "---\nsource: https://github.com/user/repo\n---\nContent"
+        )
+
+        special_folders = SpecialFoldersConfig(ignore_files=["README.md"])
+        config = Config(
+            domain_rules={"github.com": "Code"},
+            special_folders=special_folders,
+        )
+        result = apply_domain_rules_fallback(source_dir, config, set())
+        assert result == []
+
+    def test_no_url_skips_file(self, tmp_path: Path) -> None:
+        """Test that files without URLs in frontmatter are skipped."""
+        from clipmd.config import Config
+
+        source_dir = tmp_path / "source"
+        source_dir.mkdir()
+        (source_dir / "article.md").write_text("---\ntitle: No URL here\n---\nContent")
+
+        config = Config(domain_rules={"github.com": "Code"})
+        result = apply_domain_rules_fallback(source_dir, config, set())
+        assert result == []
+
+    def test_no_matching_rule_skips_file(self, tmp_path: Path) -> None:
+        """Test that files without matching domain rules are skipped."""
+        from clipmd.config import Config
+
+        source_dir = tmp_path / "source"
+        source_dir.mkdir()
+        (source_dir / "article.md").write_text(
+            "---\nsource: https://example.com/article\n---\nContent"
+        )
+
+        config = Config(domain_rules={"github.com": "Code"})
+        result = apply_domain_rules_fallback(source_dir, config, set())
+        assert result == []
+
+    def test_invalid_folder_from_rule_is_skipped(self, tmp_path: Path) -> None:
+        """Test that invalid folder names from rules are skipped (security)."""
+        from clipmd.config import Config
+
+        source_dir = tmp_path / "source"
+        source_dir.mkdir()
+        (source_dir / "article.md").write_text(
+            "---\nsource: https://example.com/article\n---\nContent"
+        )
+
+        # Simulate rule that returns invalid path (path traversal attempt)
+        config = Config(domain_rules={"example.com": "../Outside"})
+        result = apply_domain_rules_fallback(source_dir, config, set())
+        assert result == []
+
+    def test_case_insensitive_domain_matching(self, tmp_path: Path) -> None:
+        """Test that domain matching is case-insensitive."""
+        from clipmd.config import Config
+
+        source_dir = tmp_path / "source"
+        source_dir.mkdir()
+        (source_dir / "article.md").write_text(
+            "---\nsource: https://GitHub.COM/user/repo\n---\nContent"
+        )
+
+        config = Config(domain_rules={"github.com": "Code"})
+        result = apply_domain_rules_fallback(source_dir, config, set())
+        assert len(result) == 1
+        assert result[0].category == "Code"
+
+    def test_unparseable_file_is_skipped(self, tmp_path: Path) -> None:
+        """Test that files with unicode errors are skipped gracefully."""
+        from clipmd.config import Config
+
+        source_dir = tmp_path / "source"
+        source_dir.mkdir()
+        # Write binary garbage that can't be decoded as UTF-8
+        (source_dir / "bad.md").write_bytes(b"\xff\xfe\x00\x00")
+
+        config = Config(domain_rules={"github.com": "Code"})
+        # Should not raise, should return empty list
+        result = apply_domain_rules_fallback(source_dir, config, set())
+        assert result == []
+
+    def test_multiple_files_multiple_rules(self, tmp_path: Path) -> None:
+        """Test multiple files against multiple domain rules."""
+        from clipmd.config import Config
+
+        source_dir = tmp_path / "source"
+        source_dir.mkdir()
+        (source_dir / "github.md").write_text(
+            "---\nsource: https://github.com/user/repo\n---\nContent"
+        )
+        (source_dir / "news.md").write_text(
+            "---\nsource: https://techcrunch.com/article\n---\nContent"
+        )
+        (source_dir / "doc.md").write_text("---\nsource: https://docs.python.org/\n---\nContent")
+
+        config = Config(
+            domain_rules={
+                "github.com": "Code",
+                "techcrunch.com": "News",
+                "docs.python.org": "Docs",
+            }
+        )
+        result = apply_domain_rules_fallback(source_dir, config, set())
+        assert len(result) == 3
+        # Results should be sorted by filename (glob sorts them)
+        filenames = {r.filename for r in result}
+        assert filenames == {"doc.md", "github.md", "news.md"}

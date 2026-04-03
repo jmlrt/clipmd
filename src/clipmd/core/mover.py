@@ -13,6 +13,8 @@ from send2trash import send2trash
 
 from clipmd.core.cache import load_cache
 from clipmd.core.frontmatter import get_source_url, parse_frontmatter
+from clipmd.core.rules import match_domain
+from clipmd.core.sanitizer import extract_domain
 
 if TYPE_CHECKING:
     from clipmd.config import Config
@@ -102,6 +104,76 @@ def parse_categorization_file(content: str) -> list[MoveInstruction]:
             )
 
     return instructions
+
+
+def apply_domain_rules_fallback(
+    source_dir: Path,
+    config: Config,
+    mapped_files: set[str],
+) -> list[MoveInstruction]:
+    """Apply domain rules to unmapped articles as a fallback.
+
+    Scans for articles in source_dir that aren't in the categorization file,
+    extracts their URLs, and applies domain rules from config. Creates
+    MoveInstructions for articles that match a domain rule.
+
+    Args:
+        source_dir: Source directory containing articles.
+        config: Application configuration with domain rules.
+        mapped_files: Set of filenames already in the categorization file.
+
+    Returns:
+        List of MoveInstructions for articles with matching domain rules.
+    """
+    if not config.domain_rules:
+        return []
+
+    fallback_instructions: list[MoveInstruction] = []
+    index_offset = 10000  # Use high index numbers for fallback
+
+    # Find all markdown files in source_dir
+    for md_file in sorted(source_dir.glob("*.md")):
+        if md_file.name in mapped_files:
+            continue  # Skip already mapped files
+
+        # Skip configured ignored files
+        ignore_files = getattr(getattr(config, "special_folders", None), "ignore_files", [])
+        if md_file.name in ignore_files:
+            continue
+
+        # Extract URL from frontmatter
+        try:
+            content = md_file.read_text(encoding="utf-8")
+            parsed = parse_frontmatter(content)
+            url = get_source_url(parsed.data, config.frontmatter)
+
+            if not url:
+                continue
+
+            # Extract domain and apply rules
+            domain = extract_domain(url)
+            folder = match_domain(domain, config.domain_rules)
+
+            if folder:
+                # Validate folder using same constraints as categorization parser
+                # to prevent path traversal or invalid paths
+                if not re.fullmatch(r"[A-Za-z0-9_-]+", folder):
+                    continue  # Skip invalid rule outputs
+
+                instruction = MoveInstruction(
+                    index=index_offset,
+                    category=folder,
+                    filename=md_file.name,
+                    line_number=-1,  # Negative to indicate fallback
+                    is_trash=False,
+                )
+                fallback_instructions.append(instruction)
+                index_offset += 1
+        except (OSError, UnicodeDecodeError):
+            # Skip files that can't be read or decoded
+            pass
+
+    return fallback_instructions
 
 
 def parse_json_categorization(content: str) -> list[MoveInstruction]:

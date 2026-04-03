@@ -142,6 +142,19 @@ def move_command(
         console.print("[yellow]No valid move instructions found[/yellow]")
         return
 
+    # Apply domain rules to unmapped articles as a fallback
+    mapped_files = {instr.filename for instr in instructions}
+    fallback_instructions = mover.apply_domain_rules_fallback(
+        source_dir,
+        config,
+        mapped_files,
+    )
+    if fallback_instructions:
+        instructions.extend(fallback_instructions)
+        console.print(
+            f"[cyan]ℹ Applied domain rules to {len(fallback_instructions)} unmapped article(s)[/cyan]"
+        )
+
     # Pre-flight fuzzy folder check (skip in dry-run — just warn)
     suspicious = mover.find_suspicious_categories(instructions, source_dir, dest_root=dest_root)
     if suspicious:
