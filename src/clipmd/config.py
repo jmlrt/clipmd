@@ -125,6 +125,14 @@ class FetchConfig(BaseModel):
     max_concurrent: int = 5
 
 
+class TriageConfig(BaseModel):
+    """Configuration for the triage workflow."""
+
+    rss_sources: list[str] = Field(default_factory=list)
+    inbox_file: str | None = None
+    staging_folder: str = "0-To-Categorize"
+
+
 class Config(BaseModel):
     """Main configuration for clipmd."""
 
@@ -139,6 +147,7 @@ class Config(BaseModel):
     folders: FoldersConfig = Field(default_factory=FoldersConfig)
     cache_config: CacheConfig = Field(default_factory=CacheConfig)
     fetch: FetchConfig = Field(default_factory=FetchConfig)
+    triage: TriageConfig = Field(default_factory=TriageConfig)
     domain_rules: dict[str, str] = Field(
         default_factory=dict,
         description="Domain to folder mappings for automatic categorization (e.g. {'github.com': 'Dev-Tools'})",
