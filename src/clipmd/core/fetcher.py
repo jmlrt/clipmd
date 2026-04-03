@@ -192,7 +192,7 @@ def extract_content_trafilatura(html: str, url: str) -> tuple[str | None, dict]:
             except json.JSONDecodeError:
                 pass
 
-        return result or "", metadata
+        return result, metadata
     except OverflowError:
         # lxml C extension incompatibility with Python 3.14+ (int too large to convert to C int)
         return None, {}
@@ -368,13 +368,14 @@ async def fetch_url(
     # Extract content
     if use_readability:
         content, metadata = extract_content_trafilatura(html, effective_url)
-        if content is not None:
+        if content:
             result.title = metadata.get("title")
             result.author = metadata.get("author")
             result.published = metadata.get("date")
             result.description = metadata.get("description")
         else:
-            # Trafilatura failed (e.g., lxml OverflowError on Python 3.14+), fall back to markdownify
+            # Trafilatura failed (e.g., lxml OverflowError on Python 3.14+ or returned empty content),
+            # fall back to markdownify
             content = html_to_markdown(html)
     else:
         content = html_to_markdown(html)

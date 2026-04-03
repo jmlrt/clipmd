@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from clipmd.core.fetcher import _extract_tracking_destination
+from unittest.mock import patch
+
+from clipmd.core.fetcher import _extract_tracking_destination, extract_content_trafilatura
 
 
 class TestExtractTrackingDestination:
@@ -59,3 +61,20 @@ class TestExtractTrackingDestination:
         # The important thing is that the function doesn't crash
         assert result is not None
         assert result.startswith("https://")  # Should at least have the protocol
+
+
+class TestExtractContentTrafilatura:
+    """Tests for extract_content_trafilatura function."""
+
+    def test_overflow_error_fallback(self) -> None:
+        """Test that OverflowError (Python 3.14+ lxml issue) returns None for fallback."""
+        html = "<html><body>Test content</body></html>"
+        url = "https://example.com"
+
+        with patch("clipmd.core.fetcher.trafilatura.extract") as mock_extract:
+            mock_extract.side_effect = OverflowError("Python int too large to convert to C int")
+            content, metadata = extract_content_trafilatura(html, url)
+
+            # Should return None to signal failure (triggers fallback in fetch_url)
+            assert content is None
+            assert metadata == {}
