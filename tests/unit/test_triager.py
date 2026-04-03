@@ -224,6 +224,101 @@ class TestRunTriage:
             assert result.fetch.inbox_fetched == 2
             assert inbox.read_text() == ""  # Should be cleared after successful fetch
 
+    def test_rss_fetch_error(self, tmp_path: Path) -> None:
+        """Test triage handles RSS fetch errors gracefully."""
+        config = Config(
+            vault=tmp_path,
+            cache=tmp_path / "cache.json",
+            triage=TriageConfig(rss_sources=["https://example.com/feed.xml"], inbox_file=None),
+        )
+
+        with (
+            patch("clipmd.core.triager.asyncio.run") as mock_async,
+            patch("clipmd.core.triager.stats.collect_folder_stats") as mock_stats,
+            patch("clipmd.core.triager.preprocessor.preprocess_directory") as mock_preprocess,
+            patch("clipmd.core.triager.mover.apply_domain_rules_fallback") as mock_apply,
+            patch("clipmd.core.triager.mover.execute_moves") as mock_execute,
+        ):
+            from clipmd.core.fetcher import FetchOrchestrationResult, FetchStats, ProcessResult
+            from clipmd.core.mover import MoveStats
+            from clipmd.core.preprocessor import PreprocessStats
+            from clipmd.core.stats import Stats
+
+            # Mock RSS error
+            fetch_result = FetchOrchestrationResult(
+                rss_error="Failed to fetch RSS: connection timeout",
+                process_result=ProcessResult(
+                    stats=FetchStats(total=0, saved=0, skipped=0, errors=[]), saved_files=[]
+                ),
+                fetch_results=[],
+            )
+            mock_async.return_value = fetch_result
+
+            mock_stats.return_value = Stats()
+            mock_preprocess.return_value = PreprocessStats(scanned=0)
+            mock_apply.return_value = []
+            mock_execute.return_value = MoveStats()
+
+            result = run_triage(config, tmp_path, dry_run=True)
+
+            # Verify error was captured
+            assert len(result.fetch.errors) == 1
+            assert "Failed to fetch RSS" in result.fetch.errors[0]
+
+    def test_inbox_fetch_error_with_partial_success(self, tmp_path: Path) -> None:
+        """Test triage preserves failed URLs in INBOX.md on partial error."""
+        config = Config(
+            vault=tmp_path,
+            cache=tmp_path / "cache.json",
+            triage=TriageConfig(rss_sources=[], inbox_file="INBOX.md"),
+        )
+
+        inbox = tmp_path / "INBOX.md"
+        inbox.write_text("https://example.com/article1\nhttps://example.com/article2")
+
+        with (
+            patch("clipmd.core.triager.asyncio.run") as mock_async,
+            patch("clipmd.core.triager.stats.collect_folder_stats") as mock_stats,
+            patch("clipmd.core.triager.preprocessor.preprocess_directory") as mock_preprocess,
+            patch("clipmd.core.triager.mover.apply_domain_rules_fallback") as mock_apply,
+            patch("clipmd.core.triager.mover.execute_moves") as mock_execute,
+        ):
+            from clipmd.core.fetcher import FetchOrchestrationResult, FetchStats, ProcessResult
+            from clipmd.core.mover import MoveStats
+            from clipmd.core.preprocessor import PreprocessStats
+            from clipmd.core.stats import Stats
+
+            # Mock partial fetch with one failure
+            fetch_result = FetchOrchestrationResult(
+                rss_error=None,
+                process_result=ProcessResult(
+                    stats=FetchStats(
+                        total=2,
+                        saved=1,
+                        skipped=0,
+                        errors=[("https://example.com/article2", "Connection timeout")],
+                    ),
+                    saved_files=[],
+                ),
+                fetch_results=[],
+            )
+            mock_async.return_value = fetch_result
+
+            mock_stats.return_value = Stats()
+            mock_preprocess.return_value = PreprocessStats(scanned=1)
+            mock_apply.return_value = []
+            mock_execute.return_value = MoveStats()
+
+            result = run_triage(config, tmp_path, dry_run=False)
+
+            # Verify partial results
+            assert result.fetch.inbox_fetched == 1
+            # Verify failed URL was preserved in INBOX.md
+            inbox_content = inbox.read_text()
+            assert "https://example.com/article2" in inbox_content
+            assert "[KO]" in inbox_content
+            assert "Connection timeout" in inbox_content
+
 
 class TestFetchStepResult:
     """Tests for FetchStepResult dataclass."""
@@ -339,3 +434,32 @@ class TestFormatTriageSummary:
 
         output = "\n".join(lines)
         assert "Organized" in output or "10" in output
+
+    def test_with_fetch_errors(self) -> None:
+        """Test formatting with fetch errors."""
+        from clipmd.core.stats import Stats
+        from clipmd.core.triager import format_triage_summary
+
+        result = TriageResult()
+        result.fetch = FetchStepResult(errors=["RSS fetch failed", "Network error"])
+        result.stats_result = Stats()
+
+        lines = format_triage_summary(result)
+
+        output = "\n".join(lines)
+        assert "warning" in output.lower() or "error" in output.lower()
+
+    def test_with_move_errors(self) -> None:
+        """Test formatting with move errors."""
+        from clipmd.core.stats import Stats
+        from clipmd.core.triager import format_triage_summary
+
+        result = TriageResult()
+        result.move = MoveStepResult(errors=["Permission denied", "Folder not found"])
+        result.stats_result = Stats()
+
+        lines = format_triage_summary(result)
+
+        # Errors are only shown via exit code, but result should format without crash
+        assert len(lines) > 0
+        assert any("complete" in line.lower() for line in lines)

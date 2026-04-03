@@ -134,9 +134,7 @@ def run_triage(
     # Preprocess
     preprocess_stats = preprocessor.preprocess_directory(vault, config, dry_run=dry_run)
     result.preprocess.processed = preprocess_stats.scanned
-    result.preprocess.duplicates_removed = len(
-        [e for e in preprocess_stats.errors if "duplicate" in str(e).lower()]
-    )
+    result.preprocess.duplicates_removed = preprocess_stats.duplicates_found
 
     # Move with domain rules
     all_md_files = {f.name for f in vault.glob("*.md") if f.is_file()}
