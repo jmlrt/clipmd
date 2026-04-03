@@ -136,8 +136,9 @@ def apply_domain_rules_fallback(
         if md_file.name in mapped_files:
             continue  # Skip already mapped files
 
-        # Skip special files
-        if md_file.name in {"CLAUDE.md", "INBOX.md", "README.md"}:
+        # Skip configured ignored files
+        ignore_files = getattr(getattr(config, "special_folders", None), "ignore_files", [])
+        if md_file.name in ignore_files:
             continue
 
         # Extract URL from frontmatter
@@ -154,6 +155,11 @@ def apply_domain_rules_fallback(
             folder = match_domain(domain, config.domain_rules)
 
             if folder:
+                # Validate folder using same constraints as categorization parser
+                # to prevent path traversal or invalid paths
+                if not re.fullmatch(r"[A-Za-z0-9_-]+", folder):
+                    continue  # Skip invalid rule outputs
+
                 instruction = MoveInstruction(
                     index=index_offset,
                     category=folder,
@@ -163,8 +169,8 @@ def apply_domain_rules_fallback(
                 )
                 fallback_instructions.append(instruction)
                 index_offset += 1
-        except Exception:
-            # Skip files that can't be parsed
+        except (OSError, UnicodeDecodeError):
+            # Skip files that can't be read or decoded
             pass
 
     return fallback_instructions

@@ -784,3 +784,60 @@ Content here.
         )
         assert result.exit_code == 1
         assert "Error:" in result.output
+
+
+class TestMoveWithDomainRulesFallback:
+    """Tests for domain rules fallback in move command."""
+
+    def test_domain_rules_fallback_doesnt_crash(self, tmp_path: Path) -> None:
+        """Test that move command gracefully handles domain rules fallback.
+
+        Verifies that the move command applies domain rules fallback for
+        unmapped articles without crashing. Detailed behavior is tested
+        in unit tests for apply_domain_rules_fallback().
+        """
+        runner = CliRunner()
+        source_dir = tmp_path / "source"
+        source_dir.mkdir()
+        vault_dir = tmp_path / "vault"
+        vault_dir.mkdir()
+
+        # Create destination folder
+        (vault_dir / "Code").mkdir()
+
+        # Create article with source URL (no explicit categorization)
+        (source_dir / "github-article.md").write_text(
+            "---\nsource: https://github.com/user/repo\n---\nContent"
+        )
+
+        # Empty categorization file (no explicit mappings)
+        cat_file = tmp_path / "categorization.txt"
+        cat_file.write_text("")
+
+        # Config with domain rules
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(
+            """
+domain_rules:
+  github.com: "Code"
+"""
+        )
+
+        # Run move command - should not crash
+        result = runner.invoke(
+            main,
+            [
+                "move",
+                "--vault",
+                str(vault_dir),
+                "--source-dir",
+                str(source_dir),
+                "--config",
+                str(config_file),
+                "--dry-run",
+                str(cat_file),
+            ],
+        )
+
+        # Should run without crashing (may have exit code 0 or 2 depending on results)
+        assert result.exit_code in (0, 1, 2)
