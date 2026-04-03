@@ -82,7 +82,7 @@ def parse_date_string(
     try:
         dt = dateutil_parser.parse(date_str, fuzzy=False)
         return dt.date()
-    except (ValueError, TypeError):
+    except (ValueError, TypeError, OverflowError):
         pass
 
     return None
