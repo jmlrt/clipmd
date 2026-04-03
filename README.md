@@ -114,6 +114,44 @@ clipmd duplicates --by-url
 - Adds date prefixes (from frontmatter or content)
 - Detects duplicates
 
+### Automated Triage
+
+Run a complete unattended workflow in one command: fetch RSS + INBOX.md → preprocess → apply domain rules → organize into folders → report stats.
+
+```bash
+# Full automated workflow (requires config with domain rules)
+clipmd triage
+
+# Dry run preview
+clipmd triage --dry-run
+
+# Skip domain rules (move everything to staging)
+clipmd triage --no-domain-rules
+
+# Custom staging folder
+clipmd triage --staging "inbox"
+```
+
+**When to use:**
+- Scheduled cron jobs for RSS feeds
+- Batch processing new articles with known domain rules
+- Combining fetch + preprocess + move in one step
+
+**Configuration:**
+Add to `config.yaml`:
+```yaml
+triage:
+  rss_sources:
+    - "https://example.com/feed.xml"
+    - "https://another.com/rss"
+  inbox_file: "INBOX.md"           # Optional: source file with URLs
+  staging_folder: "0-To-Categorize" # Folder for unmatched articles
+
+domain_rules:
+  github.com: Dev-Tools
+  arxiv.org: Science
+```
+
 ### Extract Metadata
 
 ```bash
@@ -272,7 +310,7 @@ See [SPEC.md](SPEC.md) for complete configuration reference.
 
 ## Example Workflow
 
-### Triage New Articles
+### Triage New Articles (Manual)
 
 ```bash
 # 1. Fetch articles
@@ -298,6 +336,45 @@ clipmd move categorization.txt
 # 7. View results
 clipmd stats
 ```
+
+### Automated Triage (RSS/INBOX)
+
+When configured with RSS sources and domain rules, run the entire workflow automatically:
+
+```bash
+# One command handles: fetch → preprocess → apply domain rules → organize → stats
+clipmd triage
+
+# Or on a schedule (cron)
+# 0 9 * * * /usr/local/bin/clipmd triage
+```
+
+**Prerequisites:**
+1. Configure RSS sources and domain rules in `config.yaml`
+2. Create `INBOX.md` in vault root (optional, for manual URLs)
+
+**Configuration example:**
+```yaml
+triage:
+  rss_sources:
+    - "https://example.com/feed.xml"
+  inbox_file: "INBOX.md"
+  staging_folder: "0-To-Categorize"
+
+domain_rules:
+  github.com: Dev-Tools
+  arxiv.org: Science
+```
+
+**Workflow:**
+- ✅ Fetches RSS articles automatically
+- ✅ Processes INBOX.md URLs (clears file on success)
+- ✅ Preprocesses all articles
+- ✅ Applies domain rules to matching articles
+- ✅ Moves unmatched to staging folder for later LLM categorization
+- ✅ Generates final stats
+
+Articles matching domain rules are organized automatically. Unmatched articles go to staging for LLM review (same as manual workflow step 4-6).
 
 ### Reorganize Existing Folders
 
