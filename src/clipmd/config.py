@@ -131,6 +131,7 @@ class TriageConfig(BaseModel):
     rss_sources: list[str] = Field(default_factory=list)
     inbox_file: str | None = None
     staging_folder: str = "0-To-Categorize"
+    rss_limit: int = 10
 
 
 class Config(BaseModel):
