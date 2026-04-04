@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -82,64 +83,78 @@ def run_triage(
 
     # Fetch RSS sources
     for rss_url in config.triage.rss_sources:
-        orch_result = asyncio.run(
-            fetcher.orchestrate_fetch(
-                (rss_url,),
-                None,
-                config,
-                vault,
-                rss=True,
-                rss_limit=config.triage.rss_limit,
-                check_duplicates=True,
-                use_readability=True,
-                dry_run=dry_run,
-            )
-        )
-        if orch_result.rss_error:
-            result.fetch.errors.append(f"RSS fetch failed for {rss_url}: {orch_result.rss_error}")
-        else:
-            stats_obj = orch_result.process_result.stats
-            result.fetch.rss_fetched += stats_obj.saved
-            result.fetch.skipped += stats_obj.skipped
-            # Capture individual fetch errors
-            for url, error in stats_obj.errors:
-                result.fetch.errors.append(f"{url}: {error}")
-
-    # Fetch INBOX.md if configured
-    if config.triage.inbox_file:
-        inbox_path = vault / config.triage.inbox_file
-        if inbox_path.exists():
+        try:
             orch_result = asyncio.run(
                 fetcher.orchestrate_fetch(
-                    (),
-                    inbox_path,
+                    (rss_url,),
+                    None,
                     config,
                     vault,
-                    rss=False,
+                    rss=True,
+                    rss_limit=config.triage.rss_limit,
                     check_duplicates=True,
                     use_readability=True,
                     dry_run=dry_run,
                 )
             )
-            stats_obj = orch_result.process_result.stats
-            result.fetch.inbox_fetched += stats_obj.saved
-            result.fetch.skipped += stats_obj.skipped
+            if orch_result.rss_error:
+                result.fetch.errors.append(
+                    f"RSS fetch failed for {rss_url}: {orch_result.rss_error}"
+                )
+            else:
+                stats_obj = orch_result.process_result.stats
+                result.fetch.rss_fetched += stats_obj.saved
+                result.fetch.skipped += stats_obj.skipped
+                # Capture individual fetch errors
+                for url, error in stats_obj.errors:
+                    result.fetch.errors.append(f"{url}: {error}")
+        except Exception as exc:
+            result.fetch.errors.append(f"RSS fetch failed for {rss_url}: {exc}")
 
-            # Clear inbox file on success
-            if not dry_run and (stats_obj.saved > 0 or stats_obj.errors):
-                if stats_obj.errors:
-                    ko_lines = "\n".join(
-                        f"{url} # [KO] - {error}" for url, error in stats_obj.errors
+    # Fetch INBOX.md if configured
+    if config.triage.inbox_file:
+        inbox_path = vault / config.triage.inbox_file
+        if inbox_path.exists():
+            try:
+                orch_result = asyncio.run(
+                    fetcher.orchestrate_fetch(
+                        (),
+                        inbox_path,
+                        config,
+                        vault,
+                        rss=False,
+                        check_duplicates=True,
+                        use_readability=True,
+                        dry_run=dry_run,
                     )
-                    inbox_path.write_text(ko_lines + "\n" if ko_lines else "", encoding="utf-8")
-                else:
-                    inbox_path.write_text("", encoding="utf-8")
+                )
+                stats_obj = orch_result.process_result.stats
+                result.fetch.inbox_fetched += stats_obj.saved
+                result.fetch.skipped += stats_obj.skipped
+                # Capture individual fetch errors from INBOX
+                for url, error in stats_obj.errors:
+                    result.fetch.errors.append(f"{url}: {error}")
+
+                # Clear inbox file on success
+                if not dry_run and (stats_obj.saved > 0 or stats_obj.errors):
+                    if stats_obj.errors:
+                        ko_lines = "\n".join(
+                            f"{url} # [KO] - {error}" for url, error in stats_obj.errors
+                        )
+                        inbox_path.write_text(ko_lines + "\n" if ko_lines else "", encoding="utf-8")
+                    else:
+                        inbox_path.write_text("", encoding="utf-8")
+            except Exception as exc:
+                result.fetch.errors.append(f"INBOX fetch failed: {exc}")
 
     # Preprocess
-    preprocess_stats = preprocessor.preprocess_directory(vault, config, dry_run=dry_run)
-    result.preprocess.processed = preprocess_stats.scanned
-    result.preprocess.duplicates_removed = preprocess_stats.duplicates_found
-    result.preprocess.errors = [f"{path}: {error}" for path, error in preprocess_stats.errors]
+    try:
+        preprocess_stats = preprocessor.preprocess_directory(vault, config, dry_run=dry_run)
+        result.preprocess.processed = preprocess_stats.scanned
+        result.preprocess.duplicates_removed = preprocess_stats.duplicates_found
+        result.preprocess.errors = [f"{path}: {error}" for path, error in preprocess_stats.errors]
+    except Exception as exc:
+        result.preprocess.errors.append(f"Preprocess failed: {exc}")
 
     # Move with domain rules
     # Filter out special files (INBOX.md, README.md, etc.) from move candidates
@@ -173,22 +188,26 @@ def run_triage(
     # Execute moves
     all_instructions = domain_instructions + staging_instructions
     if all_instructions:
-        move_stats = mover.execute_moves(
-            all_instructions,
-            vault,
-            config,
-            dry_run=dry_run,
-            create_folders=True,
-            update_cache=True,
-            dest_root=vault,
-            skip_missing=True,
-        )
-        result.move.trashed = move_stats.trashed
-        result.move.folders_created = move_stats.folders_created
-        result.move.errors = [f"{file}: {error}" for file, error in move_stats.errors]
+        try:
+            move_stats = mover.execute_moves(
+                all_instructions,
+                vault,
+                config,
+                dry_run=dry_run,
+                create_folders=True,
+                update_cache=True,
+                dest_root=vault,
+                skip_missing=True,
+            )
+            result.move.trashed = move_stats.trashed
+            result.move.folders_created = move_stats.folders_created
+            result.move.errors = [f"{file}: {error}" for file, error in move_stats.errors]
+        except Exception as exc:
+            result.move.errors.append(f"Move operation failed: {exc}")
 
-    # Collect stats
-    result.stats_result = stats.collect_folder_stats(vault, config, include_special=False)
+    # Collect stats (non-critical; suppress errors to avoid breaking the workflow)
+    with contextlib.suppress(Exception):
+        result.stats_result = stats.collect_folder_stats(vault, config, include_special=False)
 
     return result
 

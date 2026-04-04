@@ -268,6 +268,57 @@ class TestRunTriage:
             assert result.fetch.inbox_fetched == 2
             assert inbox.read_text() == ""  # Should be cleared after successful fetch
 
+    def test_rss_fetch_exception_handling(self, tmp_path: Path) -> None:
+        """Test triage handles RSS fetch exceptions gracefully."""
+        config = Config(
+            vault=tmp_path,
+            cache=tmp_path / "cache.json",
+            triage=TriageConfig(rss_sources=["https://example.com/feed.xml"], inbox_file=None),
+        )
+
+        with (
+            patch("clipmd.core.triager.asyncio.run") as mock_async,
+            patch("clipmd.core.triager.stats.collect_folder_stats") as mock_stats,
+            patch("clipmd.core.triager.preprocessor.preprocess_directory") as mock_preprocess,
+        ):
+            from clipmd.core.preprocessor import PreprocessStats
+            from clipmd.core.stats import Stats
+
+            # Mock exception during RSS fetch
+            mock_async.side_effect = RuntimeError("Network error")
+            mock_stats.return_value = Stats()
+            mock_preprocess.return_value = PreprocessStats(scanned=0)
+
+            result = run_triage(config, tmp_path, dry_run=True)
+
+            # Verify exception was captured
+            assert len(result.fetch.errors) == 1
+            assert "Network error" in result.fetch.errors[0]
+
+    def test_preprocess_exception_handling(self, tmp_path: Path) -> None:
+        """Test triage handles preprocess exceptions gracefully."""
+        config = Config(
+            vault=tmp_path,
+            cache=tmp_path / "cache.json",
+            triage=TriageConfig(rss_sources=[], inbox_file=None),
+        )
+
+        with (
+            patch("clipmd.core.triager.stats.collect_folder_stats") as mock_stats,
+            patch("clipmd.core.triager.preprocessor.preprocess_directory") as mock_preprocess,
+        ):
+            from clipmd.core.stats import Stats
+
+            # Mock exception during preprocess
+            mock_preprocess.side_effect = OSError("Permission denied")
+            mock_stats.return_value = Stats()
+
+            result = run_triage(config, tmp_path, dry_run=True)
+
+            # Verify exception was captured in preprocess errors
+            assert len(result.preprocess.errors) == 1
+            assert "Permission denied" in result.preprocess.errors[0]
+
     def test_rss_fetch_error(self, tmp_path: Path) -> None:
         """Test triage handles RSS fetch errors gracefully."""
         config = Config(

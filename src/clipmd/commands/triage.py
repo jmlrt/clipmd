@@ -66,4 +66,9 @@ def triage_command(
         console.print(line)
 
     if result.move.errors:
+        console.print("\n[red]Move errors:[/red]")
+        for error in result.move.errors[:5]:
+            console.print(f"  - {error}")
+        if len(result.move.errors) > 5:
+            console.print(f"  ... and {len(result.move.errors) - 5} more")
         raise SystemExit(2)
