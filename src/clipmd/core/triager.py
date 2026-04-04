@@ -64,7 +64,8 @@ def run_triage(
 ) -> TriageResult:
     """Run the triage workflow: fetch → preprocess → move → stats.
 
-    All steps are non-blocking; errors are logged and stored in results.
+    Best-effort execution: errors are logged and stored in results, but the
+    workflow continues through all steps when possible (partial failures).
 
     Args:
         config: Configuration object
@@ -88,7 +89,7 @@ def run_triage(
                 config,
                 vault,
                 rss=True,
-                rss_limit=10,
+                rss_limit=config.triage.rss_limit,
                 check_duplicates=True,
                 use_readability=True,
                 dry_run=dry_run,
@@ -100,6 +101,9 @@ def run_triage(
             stats_obj = orch_result.process_result.stats
             result.fetch.rss_fetched += stats_obj.saved
             result.fetch.skipped += stats_obj.skipped
+            # Capture individual fetch errors
+            for url, error in stats_obj.errors:
+                result.fetch.errors.append(f"{url}: {error}")
 
     # Fetch INBOX.md if configured
     if config.triage.inbox_file:
@@ -135,9 +139,17 @@ def run_triage(
     preprocess_stats = preprocessor.preprocess_directory(vault, config, dry_run=dry_run)
     result.preprocess.processed = preprocess_stats.scanned
     result.preprocess.duplicates_removed = preprocess_stats.duplicates_found
+    result.preprocess.errors = [f"{path}: {error}" for path, error in preprocess_stats.errors]
 
     # Move with domain rules
-    all_md_files = {f.name for f in vault.glob("*.md") if f.is_file()}
+    # Filter out special files (INBOX.md, README.md, etc.) from move candidates
+    special_files = set(config.special_folders.ignore_files)
+    if config.triage.inbox_file:
+        special_files.add(config.triage.inbox_file)
+
+    all_md_files = {
+        f.name for f in vault.glob("*.md") if f.is_file() and f.name not in special_files
+    }
     domain_instructions = []
     if not no_domain_rules and config.domain_rules:
         domain_instructions = mover.apply_domain_rules_fallback(vault, config, set())
@@ -191,9 +203,6 @@ def format_triage_summary(result: TriageResult) -> list[str]:
         List of Rich markup strings
     """
     lines = []
-
-    if result.dry_run:
-        lines.append("[yellow]DRY RUN - no files were modified[/yellow]\n")
 
     # Fetch summary
     if result.fetch.rss_fetched or result.fetch.inbox_fetched or result.fetch.skipped:
