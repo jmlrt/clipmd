@@ -137,6 +137,50 @@ class TestRunTriage:
                 assert result.move.domain_matched == 1
                 mock_execute.assert_called_once()
 
+    def test_move_errors_propagated(self, tmp_path: Path) -> None:
+        """Test that move errors are properly populated in result."""
+        config = Config(
+            vault=tmp_path,
+            cache=tmp_path / "cache.json",
+            triage=TriageConfig(rss_sources=[], inbox_file=None),
+            domain_rules={"example.com": "Example"},
+        )
+
+        # Create test article to trigger move instructions
+        article = tmp_path / "test.md"
+        article.write_text("---\nsource: https://example.com\n---\nContent")
+
+        with patch("clipmd.core.triager.stats.collect_folder_stats") as mock_stats:
+            from clipmd.core.stats import Stats
+
+            mock_stats.return_value = Stats()
+            with (
+                patch("clipmd.core.triager.preprocessor.preprocess_directory") as mock_preprocess,
+                patch("clipmd.core.triager.mover.apply_domain_rules_fallback") as mock_apply,
+                patch("clipmd.core.triager.mover.execute_moves") as mock_execute,
+            ):
+                from clipmd.core.mover import MoveInstruction, MoveStats
+                from clipmd.core.preprocessor import PreprocessStats
+
+                # Mock move operation with errors
+                mock_preprocess.return_value = PreprocessStats(scanned=1)
+                mock_apply.return_value = [
+                    MoveInstruction(index=0, category="Example", filename="test.md", line_number=-1)
+                ]
+                mock_execute.return_value = MoveStats(
+                    total=1,
+                    moved=0,
+                    trashed=0,
+                    errors=[("test.md", "Permission denied"), ("other.md", "Folder not found")],
+                )
+
+                result = run_triage(config, tmp_path, dry_run=True)
+
+                # Verify errors were captured and formatted
+                assert len(result.move.errors) == 2
+                assert "test.md: Permission denied" in result.move.errors
+                assert "other.md: Folder not found" in result.move.errors
+
     def test_with_rss_sources(self, tmp_path: Path) -> None:
         """Test triage with RSS source configured."""
         config = Config(

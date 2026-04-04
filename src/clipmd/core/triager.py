@@ -173,6 +173,7 @@ def run_triage(
         )
         result.move.trashed = move_stats.trashed
         result.move.folders_created = move_stats.folders_created
+        result.move.errors = [f"{file}: {error}" for file, error in move_stats.errors]
 
     # Collect stats
     result.stats_result = stats.collect_folder_stats(vault, config, include_special=False)
