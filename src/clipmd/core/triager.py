@@ -9,14 +9,15 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from clipmd.core import fetcher, mover, preprocessor, stats
+from clipmd.core import cache, fetcher, mover, preprocessor, stats
 from clipmd.core.mover import MoveInstruction
 
 if TYPE_CHECKING:
     from clipmd.config import Config
 
-# Suppress XML parser warnings from feedparser (applied at module level to affect
-# this module's fetch operations; does not globally affect other modules' logging)
+# Suppress noisy XML parser and feedparser warnings during fetch operations.
+# Note: These logger-level changes affect the entire process, not just this module.
+# This is acceptable as these libraries are only used here and the warnings are not useful.
 logging.getLogger("xml").setLevel(logging.CRITICAL)
 logging.getLogger("feedparser").setLevel(logging.ERROR)
 
@@ -114,6 +115,9 @@ def run_triage(
                 # Capture individual fetch errors
                 for url, error in stats_obj.errors:
                     result.fetch.errors.append(f"{url}: {error}")
+                # Update cache with newly fetched articles for deduplication on next run
+                if not dry_run and stats_obj.saved > 0:
+                    cache.update_cache_after_fetch(orch_result.fetch_results, config)
         except Exception as exc:
             result.fetch.errors.append(f"RSS fetch failed for {rss_url}: {exc}")
 
@@ -140,6 +144,9 @@ def run_triage(
                 # Capture individual fetch errors from INBOX
                 for url, error in stats_obj.errors:
                     result.fetch.errors.append(f"{url}: {error}")
+                # Update cache with newly fetched articles for deduplication on next run
+                if not dry_run and stats_obj.saved > 0:
+                    cache.update_cache_after_fetch(orch_result.fetch_results, config)
 
                 # Clear inbox file on success/duplicates found (preserving failed URLs for retry)
                 if not dry_run and (

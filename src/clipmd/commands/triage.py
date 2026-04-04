@@ -48,6 +48,7 @@ def triage_command(
     cli_ctx: Context = ctx.find_object(Context)  # type: ignore[assignment]
     config = cli_ctx.require_config()
     vault = cli_ctx.require_vault()
+    cli_ctx.require_cache()  # Validate cache is configured (required for duplicate detection)
 
     effective_staging = staging or config.triage.staging_folder
 

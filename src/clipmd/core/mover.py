@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import shutil
@@ -18,6 +19,23 @@ from clipmd.core.sanitizer import extract_domain
 
 if TYPE_CHECKING:
     from clipmd.config import Config
+
+
+def _are_files_identical(source_path: Path, dest_path: Path) -> bool | None:
+    """Compare two files by SHA256 hash. Returns True if identical, False if different, None on error."""
+    try:
+
+        def file_hash(path: Path) -> str:
+            """Compute SHA256 hash of file content (chunked for memory efficiency)."""
+            hash_obj = hashlib.sha256()
+            with open(path, "rb") as f:
+                for chunk in iter(lambda: f.read(8192), b""):
+                    hash_obj.update(chunk)
+            return hash_obj.hexdigest()
+
+        return file_hash(source_path) == file_hash(dest_path)
+    except OSError:
+        return None
 
 
 @dataclass
@@ -387,33 +405,22 @@ def execute_move(
     # Check if destination already exists
     if result.destination.exists():
         # Compare files to see if they're duplicates
-        import hashlib
+        identical = _are_files_identical(result.source, result.destination)
 
-        def file_hash(path: Path) -> str:
-            """Compute SHA256 hash of file content (chunked for memory efficiency)."""
-            hash_obj = hashlib.sha256()
-            with open(path, "rb") as f:
-                for chunk in iter(lambda: f.read(8192), b""):
-                    hash_obj.update(chunk)
-            return hash_obj.hexdigest()
-
-        try:
-            source_hash = file_hash(result.source)
-            dest_hash = file_hash(result.destination)
-
-            if source_hash == dest_hash:
-                # Files are identical - remove the source copy
-                if not dry_run:
-                    result.source.unlink()
-                result.success = True
-                result.removed_duplicate = True
-                return result
-            else:
-                # Files differ - this is a real conflict
-                result.error = "Destination file already exists (content differs)"
-                return result
-        except OSError as e:
-            result.error = f"Failed to compare files: {e}"
+        if identical is None:
+            # Error comparing files
+            result.error = "Failed to compare files"
+            return result
+        elif identical:
+            # Files are identical - send source to trash (not permanent delete)
+            if not dry_run:
+                send2trash(str(result.source))
+            result.success = True
+            result.removed_duplicate = True
+            return result
+        else:
+            # Files differ - this is a real conflict
+            result.error = "Destination file already exists (content differs)"
             return result
 
     try:
@@ -488,9 +495,20 @@ def execute_moves(
                     continue
                 dest_path = dest_folder / instruction.filename
                 if dest_path.exists():
-                    stats.errors.append(
-                        (instruction.filename, f"Destination already exists: {dest_path}")
-                    )
+                    # Check if it's a duplicate (same content) - if so, it will succeed
+                    identical = _are_files_identical(source, dest_path)
+                    if identical is None:
+                        # Error comparing files - report it
+                        stats.errors.append((instruction.filename, "Failed to compare files"))
+                        continue
+                    elif not identical:
+                        # Files differ - this is a real conflict
+                        stats.errors.append(
+                            (instruction.filename, "Destination already exists (content differs)")
+                        )
+                        continue
+                    # If identical, dry-run succeeds (source gets removed)
+                    stats.moved += 1
                     continue
                 stats.moved += 1
             continue
