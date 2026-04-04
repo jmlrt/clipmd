@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import shutil
@@ -18,6 +19,23 @@ from clipmd.core.sanitizer import extract_domain
 
 if TYPE_CHECKING:
     from clipmd.config import Config
+
+
+def _are_files_identical(source_path: Path, dest_path: Path) -> bool | None:
+    """Compare two files by SHA256 hash. Returns True if identical, False if different, None on error."""
+    try:
+
+        def file_hash(path: Path) -> str:
+            """Compute SHA256 hash of file content (chunked for memory efficiency)."""
+            hash_obj = hashlib.sha256()
+            with open(path, "rb") as f:
+                for chunk in iter(lambda: f.read(8192), b""):
+                    hash_obj.update(chunk)
+            return hash_obj.hexdigest()
+
+        return file_hash(source_path) == file_hash(dest_path)
+    except OSError:
+        return None
 
 
 @dataclass
@@ -42,6 +60,7 @@ class MoveResult:
     error: str | None = None
     trashed: bool = False
     folder_created: bool = False
+    removed_duplicate: bool = False
 
 
 @dataclass
@@ -328,6 +347,7 @@ def execute_move(
     source_dir: Path,
     create_folders: bool = True,
     dest_root: Path | None = None,
+    dry_run: bool = False,
 ) -> MoveResult:
     """Execute a single move instruction.
 
@@ -336,6 +356,7 @@ def execute_move(
         source_dir: Source directory containing the files.
         create_folders: Whether to create folders if they don't exist.
         dest_root: Root directory for destination (defaults to source_dir).
+        dry_run: If True, don't actually move/delete files.
 
     Returns:
         MoveResult with the outcome.
@@ -383,8 +404,24 @@ def execute_move(
 
     # Check if destination already exists
     if result.destination.exists():
-        result.error = "Destination file already exists"
-        return result
+        # Compare files to see if they're duplicates
+        identical = _are_files_identical(result.source, result.destination)
+
+        if identical is None:
+            # Error comparing files
+            result.error = "Failed to compare files"
+            return result
+        elif identical:
+            # Files are identical - send source to trash (not permanent delete)
+            if not dry_run:
+                send2trash(str(result.source))
+            result.success = True
+            result.removed_duplicate = True
+            return result
+        else:
+            # Files differ - this is a real conflict
+            result.error = "Destination file already exists (content differs)"
+            return result
 
     try:
         shutil.move(str(result.source), str(result.destination))
@@ -458,15 +495,28 @@ def execute_moves(
                     continue
                 dest_path = dest_folder / instruction.filename
                 if dest_path.exists():
-                    stats.errors.append(
-                        (instruction.filename, f"Destination already exists: {dest_path}")
-                    )
+                    # Check if it's a duplicate (same content) - if so, it will succeed
+                    identical = _are_files_identical(source, dest_path)
+                    if identical is None:
+                        # Error comparing files - report it
+                        stats.errors.append((instruction.filename, "Failed to compare files"))
+                        continue
+                    elif not identical:
+                        # Files differ - this is a real conflict
+                        stats.errors.append(
+                            (instruction.filename, "Destination already exists (content differs)")
+                        )
+                        continue
+                    # If identical, dry-run succeeds (source gets removed)
+                    stats.moved += 1
                     continue
                 stats.moved += 1
             continue
 
         # Execute the move
-        result = execute_move(instruction, source_dir, create_folders, dest_root=dest_root)
+        result = execute_move(
+            instruction, source_dir, create_folders, dest_root=dest_root, dry_run=dry_run
+        )
 
         if result.success:
             if result.trashed:

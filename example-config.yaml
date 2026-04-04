@@ -179,3 +179,55 @@ fetch:
 
   # Concurrency control for parallel fetching
   max_concurrent: 5
+
+# =============================================================================
+# AUTOMATIC DOMAIN RULES (for organization)
+# =============================================================================
+
+# Pre-categorize articles from known sources using domain matching.
+# When articles are processed, the source URL domain is matched against these
+# rules to automatically organize articles into folders.
+#
+# Usage:
+#   - Reduces LLM token usage (known sources don't need categorization)
+#   - Used by: extract (suggests categories), move (applies rules), triage (auto-organizes)
+#
+domain_rules:
+  github.com: Dev-Tools
+  arxiv.org: Science
+  news.ycombinator.com: Tech
+  # Add more domain → folder mappings as needed
+
+# =============================================================================
+# AUTOMATED TRIAGE WORKFLOW (fetch → preprocess → move → stats)
+# =============================================================================
+
+# Configuration for the automated triage command (clipmd triage).
+# Useful for scheduled/cron-based article organization workflows.
+#
+# The triage workflow:
+#   1. Fetches articles from RSS sources
+#   2. Processes INBOX.md (if configured)
+#   3. Preprocesses all articles (clean URLs, fix frontmatter, etc.)
+#   4. Applies domain rules to organize articles into folders
+#   5. Moves unmatched articles to staging folder
+#   6. Generates final statistics
+#
+# Example cron job:
+#   0 9 * * * /usr/local/bin/clipmd triage
+#
+triage:
+  # RSS feeds to fetch from
+  rss_sources:
+    # - "https://example.com/feed.xml"
+    # - "https://news.example.com/rss"
+
+  # Optional: File in vault root with URLs to fetch (one per line)
+  # Cleared automatically after successful fetch
+  inbox_file: null  # or "INBOX.md"
+
+  # Folder for articles that don't match any domain rule
+  staging_folder: "0-To-Categorize"
+
+  # Max articles to fetch per RSS feed (default: 10)
+  rss_limit: 10

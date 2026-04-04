@@ -1026,6 +1026,90 @@ Validating clipmd setup...
 Validation passed with 1 warning.
 ```
 
+#### `clipmd triage`
+
+Run fully automated article triage: fetch → preprocess → apply domain rules → move → stats.
+
+This command orchestrates a complete workflow for unattended article organization, useful for cron scheduling.
+
+```bash
+clipmd triage [OPTIONS]
+
+Options:
+  --staging FOLDER       Override staging folder (default: from config)
+  --no-domain-rules      Skip domain rule matching (move everything to staging)
+  --dry-run              Show what would happen without moving files
+```
+
+**Configuration:**
+
+Add to `config.yaml`:
+
+```yaml
+triage:
+  rss_sources:
+    - https://example.com/feed.xml
+    - https://another-blog.com/rss
+  inbox_file: INBOX.md                # Optional file with URLs to fetch
+  staging_folder: "0-To-Categorize"   # Folder for unmatched articles
+  rss_limit: 10                        # Max articles per RSS feed (default: 10)
+```
+
+**How it works:**
+
+1. **Fetch**: Downloads RSS sources + optional INBOX.md file
+2. **Preprocess**: Deduplicates, cleans URLs, sanitizes filenames, adds date prefixes
+3. **Apply Domain Rules**: Matches articles against configured domain rules
+4. **Move**:
+   - Articles matching domain rules → target folders
+   - Articles without matches → staging folder
+   - Duplicates → trash
+5. **Report**: Show statistics and warnings
+
+**Example workflow:**
+
+```bash
+# Basic triage (uses config settings)
+clipmd triage
+
+# Dry run to preview
+clipmd triage --dry-run
+
+# Skip domain rules (everything to staging for manual review)
+clipmd triage --no-domain-rules
+
+# Override staging folder
+clipmd triage --staging "My-Review-Folder"
+
+# Schedule in cron (fully unattended)
+0 6 * * * clipmd triage >> ~/.logs/clipmd.log 2>&1
+```
+
+**Output:**
+
+```
+Dry run - no files will be modified
+
+✅ Fetched:
+   5 from RSS
+   3 from INBOX.md
+   2 skipped (duplicates/cached)
+
+📁 Organized:
+   7 to folders (domain rules)
+   1 to staging
+   2 to trash
+```
+
+**Key features:**
+
+- ✅ Fully unattended (no human/LLM intervention)
+- ✅ Deterministic (same inputs = same results)
+- ✅ All articles organized (no files left in root)
+- ✅ Duplicates trashed (recoverable)
+- ✅ Staging folder for optional later LLM review
+- ✅ Suitable for cron scheduling
+
 ## Workflow Examples
 
 ### Example 1: Save and Organize Articles (Complete Flow)
@@ -1184,6 +1268,7 @@ clipmd/
 │       │   ├── preprocess.py   # File preprocessing
 │       │   ├── move.py         # File moving
 │       │   ├── trash.py        # Trash operations
+│       │   ├── triage.py       # Automated triage workflow
 │       │   ├── init.py         # Vault initialization
 │       │   └── validate.py     # Config validation
 │       │
@@ -1200,6 +1285,7 @@ clipmd/
 │           ├── hasher.py         # Content hashing
 │           ├── initializer.py    # Vault initialization
 │           ├── mover.py          # File moving logic
+│           ├── triager.py        # Automated triage orchestration
 │           ├── preprocessor.py   # File preprocessing
 │           ├── rss.py            # RSS/Atom feed parsing
 │           ├── sanitizer.py      # URL/filename cleaning

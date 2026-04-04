@@ -113,6 +113,7 @@ def register_commands() -> None:
     from clipmd.commands.preprocess import preprocess_command
     from clipmd.commands.stats import stats_command
     from clipmd.commands.trash import trash_command
+    from clipmd.commands.triage import triage_command
     from clipmd.commands.validate import validate_command
 
     main.add_command(preprocess_command)
@@ -122,6 +123,7 @@ def register_commands() -> None:
     main.add_command(fetch_command)
     main.add_command(stats_command)
     main.add_command(duplicates_command)
+    main.add_command(triage_command)
     main.add_command(validate_command)
 
 

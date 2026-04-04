@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `triage` command: Fully unattended article organization workflow
+  - Orchestrates fetch → preprocess → apply domain rules → move to staging in one command
+  - Fetches RSS sources and INBOX.md, automatically organizes articles by domain rules
+  - Unmapped articles moved to staging folder for optional LLM categorization
+  - Supports `--dry-run`, `--no-domain-rules`, `--staging` options
+  - Ideal for cron scheduling
 - `move --from-json`: Accept JSON categorization file for schema-constrained round-trip with `extract --format json`
 - Domain rules system for automatic article pre-categorization
   - Configure in `config.yaml` with `domain_rules: {domain: folder}` mapping
