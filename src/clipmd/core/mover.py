@@ -42,6 +42,7 @@ class MoveResult:
     error: str | None = None
     trashed: bool = False
     folder_created: bool = False
+    removed_duplicate: bool = False
 
 
 @dataclass
@@ -328,6 +329,7 @@ def execute_move(
     source_dir: Path,
     create_folders: bool = True,
     dest_root: Path | None = None,
+    dry_run: bool = False,
 ) -> MoveResult:
     """Execute a single move instruction.
 
@@ -336,6 +338,7 @@ def execute_move(
         source_dir: Source directory containing the files.
         create_folders: Whether to create folders if they don't exist.
         dest_root: Root directory for destination (defaults to source_dir).
+        dry_run: If True, don't actually move/delete files.
 
     Returns:
         MoveResult with the outcome.
@@ -383,8 +386,34 @@ def execute_move(
 
     # Check if destination already exists
     if result.destination.exists():
-        result.error = "Destination file already exists"
-        return result
+        # Compare files to see if they're duplicates
+        import hashlib
+
+        def file_hash(path: Path) -> str:
+            """Compute SHA256 hash of file content."""
+            hash_obj = hashlib.sha256()
+            with open(path, "rb") as f:
+                hash_obj.update(f.read())
+            return hash_obj.hexdigest()
+
+        try:
+            source_hash = file_hash(result.source)
+            dest_hash = file_hash(result.destination)
+
+            if source_hash == dest_hash:
+                # Files are identical - remove the source copy
+                if not dry_run:
+                    result.source.unlink()
+                result.success = True
+                result.removed_duplicate = True
+                return result
+            else:
+                # Files differ - this is a real conflict
+                result.error = "Destination file already exists (content differs)"
+                return result
+        except OSError as e:
+            result.error = f"Failed to compare files: {e}"
+            return result
 
     try:
         shutil.move(str(result.source), str(result.destination))
@@ -466,7 +495,9 @@ def execute_moves(
             continue
 
         # Execute the move
-        result = execute_move(instruction, source_dir, create_folders, dest_root=dest_root)
+        result = execute_move(
+            instruction, source_dir, create_folders, dest_root=dest_root, dry_run=dry_run
+        )
 
         if result.success:
             if result.trashed:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -13,6 +14,10 @@ from clipmd.core.mover import MoveInstruction
 
 if TYPE_CHECKING:
     from clipmd.config import Config
+
+# Suppress XML parser warnings from feedparser
+logging.getLogger("xml").setLevel(logging.CRITICAL)
+logging.getLogger("feedparser").setLevel(logging.ERROR)
 
 
 @dataclass
@@ -104,7 +109,7 @@ def run_triage(
             else:
                 stats_obj = orch_result.process_result.stats
                 result.fetch.rss_fetched += stats_obj.saved
-                result.fetch.skipped += stats_obj.skipped
+                result.fetch.skipped += stats_obj.skipped + len(orch_result.skipped_urls)
                 # Capture individual fetch errors
                 for url, error in stats_obj.errors:
                     result.fetch.errors.append(f"{url}: {error}")
@@ -130,13 +135,15 @@ def run_triage(
                 )
                 stats_obj = orch_result.process_result.stats
                 result.fetch.inbox_fetched += stats_obj.saved
-                result.fetch.skipped += stats_obj.skipped
+                result.fetch.skipped += stats_obj.skipped + len(orch_result.skipped_urls)
                 # Capture individual fetch errors from INBOX
                 for url, error in stats_obj.errors:
                     result.fetch.errors.append(f"{url}: {error}")
 
-                # Clear inbox file on success
-                if not dry_run and (stats_obj.saved > 0 or stats_obj.errors):
+                # Clear inbox file on success (saved, duplicates found, or errors only)
+                if not dry_run and (
+                    stats_obj.saved > 0 or orch_result.skipped_urls or stats_obj.errors
+                ):
                     if stats_obj.errors:
                         ko_lines = "\n".join(
                             f"{url} # [KO] - {error}" for url, error in stats_obj.errors
