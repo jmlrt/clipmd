@@ -119,14 +119,14 @@ clipmd duplicates --by-url
 Run a complete unattended workflow in one command: fetch RSS + INBOX.md → preprocess → apply domain rules → organize into folders → report stats.
 
 ```bash
-# Full automated workflow (requires config with domain rules)
+# WITH domain rules: organize by categories, unmatched → staging
 clipmd triage
+
+# WITHOUT domain rules: everything → staging (for later LLM review)
+clipmd triage --no-domain-rules
 
 # Dry run preview
 clipmd triage --dry-run
-
-# Skip domain rules (move everything to staging)
-clipmd triage --no-domain-rules
 
 # Custom staging folder
 clipmd triage --staging "inbox"
