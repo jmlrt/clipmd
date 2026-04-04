@@ -228,3 +228,6 @@ triage:
 
   # Folder for articles that don't match any domain rule
   staging_folder: "0-To-Categorize"
+
+  # Max articles to fetch per RSS feed (default: 10)
+  rss_limit: 10

@@ -390,10 +390,11 @@ def execute_move(
         import hashlib
 
         def file_hash(path: Path) -> str:
-            """Compute SHA256 hash of file content."""
+            """Compute SHA256 hash of file content (chunked for memory efficiency)."""
             hash_obj = hashlib.sha256()
             with open(path, "rb") as f:
-                hash_obj.update(f.read())
+                for chunk in iter(lambda: f.read(8192), b""):
+                    hash_obj.update(chunk)
             return hash_obj.hexdigest()
 
         try:

@@ -1052,6 +1052,7 @@ triage:
     - https://another-blog.com/rss
   inbox_file: INBOX.md                # Optional file with URLs to fetch
   staging_folder: "0-To-Categorize"   # Folder for unmatched articles
+  rss_limit: 10                        # Max articles per RSS feed (default: 10)
 ```
 
 **How it works:**

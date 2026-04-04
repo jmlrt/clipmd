@@ -15,7 +15,8 @@ from clipmd.core.mover import MoveInstruction
 if TYPE_CHECKING:
     from clipmd.config import Config
 
-# Suppress XML parser warnings from feedparser
+# Suppress XML parser warnings from feedparser (applied at module level to affect
+# this module's fetch operations; does not globally affect other modules' logging)
 logging.getLogger("xml").setLevel(logging.CRITICAL)
 logging.getLogger("feedparser").setLevel(logging.ERROR)
 
@@ -140,7 +141,7 @@ def run_triage(
                 for url, error in stats_obj.errors:
                     result.fetch.errors.append(f"{url}: {error}")
 
-                # Clear inbox file on success (saved, duplicates found, or errors only)
+                # Clear inbox file on success/duplicates found (preserving failed URLs for retry)
                 if not dry_run and (
                     stats_obj.saved > 0 or orch_result.skipped_urls or stats_obj.errors
                 ):
@@ -174,7 +175,7 @@ def run_triage(
     }
     domain_instructions = []
     if not no_domain_rules and config.domain_rules:
-        domain_instructions = mover.apply_domain_rules_fallback(vault, config, set())
+        domain_instructions = mover.apply_domain_rules_fallback(vault, config, special_files)
         result.move.domain_matched = len(domain_instructions)
 
     matched_files = {instr.filename for instr in domain_instructions}

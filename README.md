@@ -144,8 +144,9 @@ triage:
   rss_sources:
     - "https://example.com/feed.xml"
     - "https://another.com/rss"
-  inbox_file: "INBOX.md"           # Optional: source file with URLs
+  inbox_file: "INBOX.md"            # Optional: source file with URLs
   staging_folder: "0-To-Categorize" # Folder for unmatched articles
+  rss_limit: 10                      # Max articles per RSS feed (default: 10)
 
 domain_rules:
   github.com: Dev-Tools
