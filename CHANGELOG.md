@@ -27,6 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `triage` command no longer re-fetches articles that were previously organized into subdirectories but had no cache entry (e.g. articles organized before caching was implemented)
+- `triage` command no longer leaves stale source files in vault root after a blocked move — the source is now trashed automatically since the organized destination is the canonical version
 - `fetch` command no longer re-fetches manually removed URLs (always skips URLs marked as removed in cache)
 - `fetch --clear-after` now clears the URL file after successful fetches and handles partial failures gracefully:
   - On full success: clears URL file entirely

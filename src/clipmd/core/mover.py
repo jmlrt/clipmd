@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import re
@@ -573,7 +574,7 @@ def _update_cache_after_moves(
             # Update location in cache
             dest_file = (dest_root or source_dir) / instruction.category / instruction.filename
             if not dest_file.exists():
-                continue  # Move failed
+                continue  # Move truly failed (dest doesn't exist)
 
             # Read frontmatter to get URL
             try:
@@ -581,7 +582,25 @@ def _update_cache_after_moves(
                 parsed = parse_frontmatter(content)
                 url = get_source_url(parsed.data, config.frontmatter)
                 if url:
-                    cache.update_location(url, folder=instruction.category)
+                    updated = cache.update_location(url, folder=instruction.category)
+                    if updated is None:
+                        # URL not in cache: article was organized outside clipmd or before
+                        # caching was implemented. Add it now to prevent re-fetching.
+                        title_raw = parsed.data.get("title", "")
+                        title = str(title_raw) if title_raw else dest_file.stem
+                        cache.add(
+                            url=url,
+                            filename=dest_file.name,
+                            title=title,
+                            folder=instruction.category,
+                        )
+
+                # If source file still exists, the move was blocked by an existing destination.
+                # Trash the source — the organized destination is the canonical version.
+                source_file = source_dir / instruction.filename
+                if source_file.exists():
+                    with contextlib.suppress(Exception):
+                        send2trash(str(source_file))
             except Exception:
                 pass
 

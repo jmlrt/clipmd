@@ -414,6 +414,88 @@ class TestRunTriage:
             assert "[KO]" in inbox_content
             assert "Connection timeout" in inbox_content
 
+    def test_rss_fetch_individual_errors_captured(self, tmp_path: Path) -> None:
+        """Test that individual URL errors from RSS fetch are captured in result."""
+        config = Config(
+            vault=tmp_path,
+            cache=tmp_path / "cache.json",
+            triage=TriageConfig(rss_sources=["https://example.com/feed.xml"], inbox_file=None),
+        )
+
+        with (
+            patch("clipmd.core.triager.asyncio.run") as mock_async,
+            patch("clipmd.core.triager.stats.collect_folder_stats") as mock_stats,
+            patch("clipmd.core.triager.preprocessor.preprocess_directory") as mock_preprocess,
+            patch("clipmd.core.triager.mover.apply_domain_rules_fallback") as mock_apply,
+            patch("clipmd.core.triager.mover.execute_moves") as mock_execute,
+        ):
+            from clipmd.core.fetcher import FetchOrchestrationResult, FetchStats, ProcessResult
+            from clipmd.core.mover import MoveStats
+            from clipmd.core.preprocessor import PreprocessStats
+            from clipmd.core.stats import Stats
+
+            fetch_result = FetchOrchestrationResult(
+                rss_error=None,
+                process_result=ProcessResult(
+                    stats=FetchStats(
+                        total=1,
+                        saved=0,
+                        skipped=0,
+                        errors=[("https://example.com/a", "Connection refused")],
+                    ),
+                    saved_files=[],
+                ),
+                fetch_results=[],
+            )
+            mock_async.return_value = fetch_result
+            mock_stats.return_value = Stats()
+            mock_preprocess.return_value = PreprocessStats(scanned=0)
+            mock_apply.return_value = []
+            mock_execute.return_value = MoveStats()
+
+            result = run_triage(config, tmp_path, dry_run=True)
+
+            assert any("Connection refused" in e for e in result.fetch.errors)
+
+    def test_rss_cache_updated_on_successful_fetch(self, tmp_path: Path) -> None:
+        """Test that cache is updated after successful RSS fetch (non-dry-run)."""
+        config = Config(
+            vault=tmp_path,
+            cache=tmp_path / "cache.json",
+            triage=TriageConfig(rss_sources=["https://example.com/feed.xml"], inbox_file=None),
+        )
+
+        with (
+            patch("clipmd.core.triager.asyncio.run") as mock_async,
+            patch("clipmd.core.triager.cache.update_cache_after_fetch") as mock_cache_update,
+            patch("clipmd.core.triager.stats.collect_folder_stats") as mock_stats,
+            patch("clipmd.core.triager.preprocessor.preprocess_directory") as mock_preprocess,
+            patch("clipmd.core.triager.mover.apply_domain_rules_fallback") as mock_apply,
+            patch("clipmd.core.triager.mover.execute_moves") as mock_execute,
+        ):
+            from clipmd.core.fetcher import FetchOrchestrationResult, FetchStats, ProcessResult
+            from clipmd.core.mover import MoveStats
+            from clipmd.core.preprocessor import PreprocessStats
+            from clipmd.core.stats import Stats
+
+            fetch_result = FetchOrchestrationResult(
+                rss_error=None,
+                process_result=ProcessResult(
+                    stats=FetchStats(total=3, saved=3, skipped=0, errors=[]), saved_files=[]
+                ),
+                fetch_results=[],
+            )
+            mock_async.return_value = fetch_result
+            mock_stats.return_value = Stats()
+            mock_preprocess.return_value = PreprocessStats(scanned=3)
+            mock_apply.return_value = []
+            mock_execute.return_value = MoveStats()
+
+            result = run_triage(config, tmp_path, dry_run=False)
+
+            assert result.fetch.rss_fetched == 3
+            mock_cache_update.assert_called_once()
+
 
 class TestFetchStepResult:
     """Tests for FetchStepResult dataclass."""
