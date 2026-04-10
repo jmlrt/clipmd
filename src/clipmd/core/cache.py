@@ -415,10 +415,12 @@ def update_cache_after_fetch(
         if result.success and result.filename:
             # Use final URL (after redirects) for cache
             cache_url = result.final_url or result.url
-            cache.add(
-                url=cache_url,
-                filename=result.filename,
-                title=result.title or "Untitled",
-            )
+            entry_kwargs = {"filename": result.filename, "title": result.title or "Untitled"}
+            cache.add(url=cache_url, **entry_kwargs)
+            # Also index the original URL when it differs from the final URL (e.g. redirects
+            # between domains). This ensures filter_duplicate_urls recognises the original
+            # URL on the next fetch cycle and skips it instead of re-fetching.
+            if result.final_url and clean_url(result.url) != clean_url(cache_url):
+                cache.add(url=result.url, **entry_kwargs)
 
     cache.save()
