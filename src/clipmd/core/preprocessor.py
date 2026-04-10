@@ -223,7 +223,10 @@ def find_duplicates(
             if cache.has_active_url(url):
                 entry = cache.get(url)
                 if entry:
-                    # Check if cached file is different from current files
+                    # Check if cached file is different from current files.
+                    # NOTE: CacheEntry.folder was removed; entry.filename is now a bare
+                    # filename, so cross-folder duplicates (cache in Tech/, batch in inbox/)
+                    # are no longer detected here. In-batch URL deduplication still works.
                     cached_path = Path(entry.filename)
                     if cached_path not in paths:
                         paths.append(cached_path)

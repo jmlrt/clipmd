@@ -576,7 +576,9 @@ def _update_cache_after_moves(
             if not dest_file.exists():
                 continue  # Move truly failed (dest doesn't exist)
 
-            # Read frontmatter to get URL
+            # Read frontmatter to get URL. If dest file is unreadable/corrupt, skip
+            # both the cache update and the source trash (conservative: prefer not
+            # losing data over cleaning up the stale source).
             try:
                 content = dest_file.read_text(encoding="utf-8")
                 parsed = parse_frontmatter(content)
