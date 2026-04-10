@@ -582,7 +582,7 @@ def _update_cache_after_moves(
                 parsed = parse_frontmatter(content)
                 url = get_source_url(parsed.data, config.frontmatter)
                 if url:
-                    updated = cache.update_location(url, folder=instruction.category)
+                    updated = cache.update_location(url)
                     if updated is None:
                         # URL not in cache: article was organized outside clipmd or before
                         # caching was implemented. Add it now to prevent re-fetching.
@@ -592,7 +592,6 @@ def _update_cache_after_moves(
                             url=url,
                             filename=dest_file.name,
                             title=title,
-                            folder=instruction.category,
                         )
 
                 # If source file still exists, the move was blocked by an existing destination.

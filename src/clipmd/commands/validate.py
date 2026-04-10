@@ -12,13 +12,8 @@ console = Console()
 
 
 @click.command("validate")
-@click.option(
-    "--fix",
-    is_flag=True,
-    help="Attempt to fix issues",
-)
 @click.pass_context
-def validate_command(ctx: click.Context, fix: bool) -> None:  # noqa: ARG001
+def validate_command(ctx: click.Context) -> None:
     """Validate configuration and setup.
 
     Checks that clipmd is properly configured and ready to use.
@@ -62,10 +57,5 @@ def validate_command(ctx: click.Context, fix: bool) -> None:  # noqa: ARG001
     else:
         failure_count = len(report.failures)
         console.print(f"[red]Validation failed[/red] with {failure_count} error(s).")
-
-        if fix:
-            console.print("\n[dim]Attempting to fix issues...[/dim]")
-            # For now, just suggest running init
-            console.print("Run 'clipmd init' to create missing configuration.")
 
         raise SystemExit(1)

@@ -155,20 +155,6 @@ class TestValidateCommand:
         assert result.exit_code == 0
         assert "No markdown files" in result.output
 
-    def test_fix_option(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Test --fix option when config is missing."""
-        monkeypatch.chdir(tmp_path)
-        # Create isolated XDG with no config file
-        xdg_home = tmp_path / ".xdg-config-fix"
-        xdg_home.mkdir()
-        monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg_home))
-
-        runner = CliRunner()
-        result = runner.invoke(main, ["validate", "--fix"])
-        assert result.exit_code == 1
-        # When config is missing, we get a vault path error
-        assert "vault" in result.output.lower() or "config" in result.output.lower()
-
 
 class TestValidationFunctions:
     """Unit tests for validation functions."""

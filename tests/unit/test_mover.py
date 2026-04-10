@@ -509,7 +509,6 @@ class TestUpdateCacheAfterMoves:
         cache = load_cache(cache_path)
         entry = cache.get("https://example.com/article")
         assert entry is not None
-        assert entry.folder == "Tech"
 
     def test_trashes_source_when_blocked_by_existing_destination(self, tmp_path: Path) -> None:
         """Source file in vault root is trashed when destination already exists."""
@@ -562,11 +561,10 @@ class TestUpdateCacheAfterMoves:
             _update_cache_after_moves([instruction], tmp_path, config)
             mock_trash.assert_called_once_with(str(source_article))
 
-        # Cache location should be updated to organized folder
+        # Cache entry should still exist after move
         updated_cache = load_cache(cache_path)
         entry = updated_cache.get("https://example.com/article")
         assert entry is not None
-        assert entry.folder == "Tech"
 
     def test_handles_unreadable_dest_gracefully(self, tmp_path: Path) -> None:
         """Unreadable destination file is silently skipped (no exception raised)."""

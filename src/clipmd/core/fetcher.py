@@ -110,7 +110,7 @@ def extract_meta_refresh_url(html: str) -> str | None:
     return None
 
 
-def extract_metadata_from_html(html: str, url: str) -> dict:  # noqa: ARG001
+def extract_metadata_from_html(html: str) -> dict:
     """Extract metadata from HTML using BeautifulSoup.
 
     Args:
@@ -275,7 +275,6 @@ def _extract_tracking_destination(url: str) -> str | None:
 async def fetch_url(
     client: httpx.AsyncClient,
     url: str,
-    config: Config,  # noqa: ARG001
     use_readability: bool = True,
 ) -> FetchResult:
     """Fetch a single URL and extract content.
@@ -379,7 +378,7 @@ async def fetch_url(
             content = html_to_markdown(html)
     else:
         content = html_to_markdown(html)
-        metadata = extract_metadata_from_html(html, effective_url)
+        metadata = extract_metadata_from_html(html)
         result.title = metadata.get("title")
         result.author = metadata.get("author")
         result.published = metadata.get("published")
@@ -387,7 +386,7 @@ async def fetch_url(
 
     # Fallback metadata extraction if trafilatura missed things
     if not result.title or not result.description or not result.author or not result.published:
-        html_meta = extract_metadata_from_html(html, effective_url)
+        html_meta = extract_metadata_from_html(html)
         result.title = result.title or html_meta.get("title")
         result.description = result.description or html_meta.get("description")
         result.author = result.author or html_meta.get("author")
@@ -423,7 +422,7 @@ async def fetch_urls(
         url: str,
     ) -> FetchResult:
         async with semaphore:
-            return await fetch_url(client, url, config, use_readability)
+            return await fetch_url(client, url, use_readability)
 
     timeout = httpx.Timeout(config.fetch.timeout)
     headers = {"User-Agent": config.fetch.user_agent}
@@ -436,7 +435,6 @@ async def fetch_urls(
 def save_article(
     result: FetchResult,
     output_dir: Path,
-    config: Config,  # noqa: ARG001
 ) -> Path | None:
     """Save fetched article to file.
 
@@ -445,7 +443,6 @@ def save_article(
     Args:
         result: Fetch result with content.
         output_dir: Directory to save to.
-        config: Application configuration.
 
     Returns:
         Path to saved file, or None if failed.
@@ -490,7 +487,6 @@ def save_article(
 def process_fetch_results(
     results: list[FetchResult],
     output_dir: Path,
-    config: Config,
     dry_run: bool = False,
 ) -> ProcessResult:
     """Process fetch results by saving articles and collecting stats.
@@ -498,7 +494,6 @@ def process_fetch_results(
     Args:
         results: List of fetch results to process.
         output_dir: Directory to save articles to.
-        config: Application configuration.
         dry_run: If True, don't save files, just simulate.
 
     Returns:
@@ -521,7 +516,7 @@ def process_fetch_results(
                     )
                 )
             else:
-                saved_path = save_article(result, output_dir, config)
+                saved_path = save_article(result, output_dir)
                 if saved_path:
                     stats.saved += 1
                     saved_files.append(
@@ -645,7 +640,7 @@ async def orchestrate_fetch(
     )
 
     # Process results
-    process_result = process_fetch_results(results, output_dir, config, dry_run=dry_run)
+    process_result = process_fetch_results(results, output_dir, dry_run=dry_run)
 
     return FetchOrchestrationResult(
         process_result=process_result,

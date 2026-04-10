@@ -8,7 +8,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from clipmd.core.hasher import hash_content
 from clipmd.core.sanitizer import clean_url
 
 if TYPE_CHECKING:
@@ -22,30 +21,22 @@ class CacheEntry:
 
     filename: str
     title: str
-    folder: str | None = None
     first_seen: str = ""
-    last_seen: str = ""
     removed: bool = False
     removed_at: str | None = None
-    content_hash: str | None = None
 
     def __post_init__(self) -> None:
         """Set default dates if not provided."""
         if not self.first_seen:
             self.first_seen = datetime.now().strftime("%Y-%m-%d")
-        if not self.last_seen:
-            self.last_seen = datetime.now().strftime("%Y-%m-%d")
 
     def to_dict(self) -> dict[str, object]:
         """Convert to dictionary for JSON serialization."""
         result: dict[str, object] = {
             "filename": self.filename,
             "title": self.title,
-            "folder": self.folder,
             "first_seen": self.first_seen,
-            "last_seen": self.last_seen,
             "removed": self.removed,
-            "content_hash": self.content_hash,
         }
         if self.removed_at:
             result["removed_at"] = self.removed_at
@@ -57,12 +48,9 @@ class CacheEntry:
         return cls(
             filename=str(data.get("filename", "")),
             title=str(data.get("title", "")),
-            folder=str(data["folder"]) if data.get("folder") else None,
             first_seen=str(data.get("first_seen", "")),
-            last_seen=str(data.get("last_seen", "")),
             removed=bool(data.get("removed", False)),
             removed_at=str(data["removed_at"]) if data.get("removed_at") else None,
-            content_hash=str(data["content_hash"]) if data.get("content_hash") else None,
         )
 
 
@@ -122,8 +110,6 @@ class Cache:
         url: str,
         filename: str,
         title: str,
-        folder: str | None = None,
-        content_hash: str | None = None,
     ) -> CacheEntry:
         """Add or update a cache entry.
 
@@ -131,8 +117,6 @@ class Cache:
             url: The article URL (will be cleaned of tracking params).
             filename: The article filename.
             title: The article title.
-            folder: Optional folder location.
-            content_hash: Optional content hash.
 
         Returns:
             The created or updated CacheEntry.
@@ -145,21 +129,14 @@ class Cache:
             entry = self.entries[cleaned_url]
             entry.filename = filename
             entry.title = title
-            entry.folder = folder
-            entry.last_seen = today
             entry.removed = False
             entry.removed_at = None
-            if content_hash:
-                entry.content_hash = content_hash
         else:
             # Create new entry
             entry = CacheEntry(
                 filename=filename,
                 title=title,
-                folder=folder,
                 first_seen=today,
-                last_seen=today,
-                content_hash=content_hash,
             )
             self.entries[cleaned_url] = entry
 
@@ -170,14 +147,12 @@ class Cache:
         self,
         url: str,
         filename: str | None = None,
-        folder: str | None = None,
     ) -> CacheEntry | None:
         """Update the location of a cached article.
 
         Args:
             url: The article URL (will be cleaned of tracking params).
             filename: New filename (optional).
-            folder: New folder location (optional).
 
         Returns:
             Updated CacheEntry if found, None otherwise.
@@ -189,9 +164,6 @@ class Cache:
 
         if filename is not None:
             entry.filename = filename
-        if folder is not None:
-            entry.folder = folder
-        entry.last_seen = datetime.now().strftime("%Y-%m-%d")
         self._mark_updated()
         return entry
 
@@ -244,21 +216,6 @@ class Cache:
                 return (url, entry)
         return None
 
-    def find_by_hash(self, content_hash: str) -> list[tuple[str, CacheEntry]]:
-        """Find cache entries by content hash.
-
-        Args:
-            content_hash: The hash to search for.
-
-        Returns:
-            List of (url, entry) tuples with matching hash.
-        """
-        results = []
-        for url, entry in self.entries.items():
-            if entry.content_hash == content_hash and not entry.removed:
-                results.append((url, entry))
-        return results
-
     def get_active_entries(self) -> dict[str, CacheEntry]:
         """Get all non-removed entries.
 
@@ -274,21 +231,6 @@ class Cache:
             Dictionary of removed entries.
         """
         return {url: entry for url, entry in self.entries.items() if entry.removed}
-
-    def get_entries_by_folder(self) -> dict[str | None, list[tuple[str, CacheEntry]]]:
-        """Group active entries by folder.
-
-        Returns:
-            Dictionary mapping folder to list of (url, entry) tuples.
-        """
-        by_folder: dict[str | None, list[tuple[str, CacheEntry]]] = {}
-        for url, entry in self.entries.items():
-            if not entry.removed:
-                folder = entry.folder
-                if folder not in by_folder:
-                    by_folder[folder] = []
-                by_folder[folder].append((url, entry))
-        return by_folder
 
     def clean(self, existing_files: set[str]) -> int:
         """Remove entries for files that no longer exist.
@@ -471,14 +413,12 @@ def update_cache_after_fetch(
 
     for result in results:
         if result.success and result.filename:
-            content_hash = hash_content(result.content or "")
             # Use final URL (after redirects) for cache
             cache_url = result.final_url or result.url
             cache.add(
                 url=cache_url,
                 filename=result.filename,
                 title=result.title or "Untitled",
-                content_hash=content_hash,
             )
 
     cache.save()
