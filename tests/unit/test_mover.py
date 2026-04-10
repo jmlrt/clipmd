@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
 from clipmd.core.mover import (
     MoveInstruction,
     _levenshtein_distance,
+    _update_cache_after_moves,
     apply_domain_rules_fallback,
     find_suspicious_categories,
     parse_json_categorization,
@@ -474,3 +476,215 @@ class TestApplyDomainRulesFallback:
         # Results should be sorted by filename (glob sorts them)
         filenames = {r.filename for r in result}
         assert filenames == {"doc.md", "github.md", "news.md"}
+
+
+class TestUpdateCacheAfterMoves:
+    """Tests for _update_cache_after_moves function."""
+
+    def _make_instruction(self, filename: str, category: str) -> MoveInstruction:
+        return MoveInstruction(
+            index=1,
+            category=category,
+            filename=filename,
+            line_number=-1,
+            is_trash=False,
+        )
+
+    def test_adds_uncached_article_to_cache(self, tmp_path: Path) -> None:
+        """Article in organized folder but not in cache gets added to cache."""
+        from clipmd.config import Config
+        from clipmd.core.cache import load_cache
+
+        cache_path = tmp_path / ".clipmd" / "cache.json"
+        cache_path.parent.mkdir()
+        dest_folder = tmp_path / "Tech"
+        dest_folder.mkdir()
+        article = dest_folder / "article.md"
+        article.write_text("---\ntitle: Test\nsource: https://example.com/article\n---\nContent")
+
+        config = Config(vault=tmp_path, cache=cache_path)
+        instruction = self._make_instruction("article.md", "Tech")
+        _update_cache_after_moves([instruction], tmp_path, config)
+
+        cache = load_cache(cache_path)
+        entry = cache.get("https://example.com/article")
+        assert entry is not None
+
+    def test_trashes_source_when_blocked_by_existing_destination(self, tmp_path: Path) -> None:
+        """Source file in vault root is trashed when destination already exists."""
+        from clipmd.config import Config
+
+        cache_path = tmp_path / ".clipmd" / "cache.json"
+        cache_path.parent.mkdir()
+        dest_folder = tmp_path / "Tech"
+        dest_folder.mkdir()
+
+        # Destination already exists (organized copy)
+        dest_article = dest_folder / "article.md"
+        dest_article.write_text("---\ntitle: Test\nsource: https://example.com/article\n---\nOld")
+
+        # Source still exists in vault root (blocked move)
+        source_article = tmp_path / "article.md"
+        source_article.write_text("---\ntitle: Test\nsource: https://example.com/article\n---\nNew")
+
+        config = Config(vault=tmp_path, cache=cache_path)
+        instruction = self._make_instruction("article.md", "Tech")
+
+        with patch("clipmd.core.mover.send2trash") as mock_trash:
+            _update_cache_after_moves([instruction], tmp_path, config)
+            mock_trash.assert_called_once_with(str(source_article))
+
+    def test_trashes_source_when_url_already_in_cache(self, tmp_path: Path) -> None:
+        """Source file is trashed even when URL was already in cache (re-fetch scenario)."""
+        from clipmd.config import Config
+        from clipmd.core.cache import load_cache
+
+        cache_path = tmp_path / ".clipmd" / "cache.json"
+        cache_path.parent.mkdir()
+        dest_folder = tmp_path / "Tech"
+        dest_folder.mkdir()
+
+        # Pre-populate cache with the URL
+        cache = load_cache(cache_path)
+        cache.add(url="https://example.com/article", filename="article.md", title="Test")
+        cache.save(cache_path)
+
+        dest_article = dest_folder / "article.md"
+        dest_article.write_text("---\ntitle: Test\nsource: https://example.com/article\n---\nOld")
+        source_article = tmp_path / "article.md"
+        source_article.write_text("---\ntitle: Test\nsource: https://example.com/article\n---\nNew")
+
+        config = Config(vault=tmp_path, cache=cache_path)
+        instruction = self._make_instruction("article.md", "Tech")
+
+        with patch("clipmd.core.mover.send2trash") as mock_trash:
+            _update_cache_after_moves([instruction], tmp_path, config)
+            mock_trash.assert_called_once_with(str(source_article))
+
+        # Cache entry should still exist after move
+        updated_cache = load_cache(cache_path)
+        entry = updated_cache.get("https://example.com/article")
+        assert entry is not None
+
+    def test_handles_unreadable_dest_gracefully(self, tmp_path: Path) -> None:
+        """Unreadable destination file is silently skipped (no exception raised)."""
+        from clipmd.config import Config
+
+        cache_path = tmp_path / ".clipmd" / "cache.json"
+        cache_path.parent.mkdir()
+        dest_folder = tmp_path / "Tech"
+        dest_folder.mkdir()
+        # Write binary garbage that fails frontmatter parsing
+        (dest_folder / "article.md").write_bytes(b"\xff\xfe\x00\x00bad utf8")
+
+        config = Config(vault=tmp_path, cache=cache_path)
+        instruction = self._make_instruction("article.md", "Tech")
+        # Should not raise
+        _update_cache_after_moves([instruction], tmp_path, config)
+
+    def test_skips_when_dest_does_not_exist(self, tmp_path: Path) -> None:
+        """When destination doesn't exist (move truly failed), instruction is skipped."""
+        from clipmd.config import Config
+        from clipmd.core.cache import load_cache
+
+        cache_path = tmp_path / ".clipmd" / "cache.json"
+        cache_path.parent.mkdir()
+        # No dest folder created, no dest file
+
+        config = Config(vault=tmp_path, cache=cache_path)
+        instruction = self._make_instruction("missing.md", "Tech")
+        _update_cache_after_moves([instruction], tmp_path, config)
+
+        # Cache should remain empty
+        cache = load_cache(cache_path)
+        assert len(cache.entries) == 0
+
+    def test_no_url_in_frontmatter_still_trashes_source(self, tmp_path: Path) -> None:
+        """Source file is trashed even when destination has no source URL in frontmatter."""
+        from clipmd.config import Config
+
+        cache_path = tmp_path / ".clipmd" / "cache.json"
+        cache_path.parent.mkdir()
+        dest_folder = tmp_path / "Tech"
+        dest_folder.mkdir()
+        (dest_folder / "article.md").write_text("---\ntitle: Test\n---\nContent")
+
+        source_article = tmp_path / "article.md"
+        source_article.write_text("---\ntitle: Test\n---\nContent")
+
+        config = Config(vault=tmp_path, cache=cache_path)
+        instruction = self._make_instruction("article.md", "Tech")
+
+        with patch("clipmd.core.mover.send2trash") as mock_trash:
+            _update_cache_after_moves([instruction], tmp_path, config)
+            mock_trash.assert_called_once_with(str(source_article))
+
+    def test_trash_instruction_marks_removed_in_cache(self, tmp_path: Path) -> None:
+        """Trash instruction marks cached URL as removed when file is gone."""
+        from clipmd.config import Config
+        from clipmd.core.cache import load_cache
+
+        cache_path = tmp_path / ".clipmd" / "cache.json"
+        cache_path.parent.mkdir()
+
+        # Pre-populate cache
+        cache = load_cache(cache_path)
+        cache.add(url="https://example.com/article", filename="article.md", title="Test")
+        cache.save(cache_path)
+
+        # File is already gone (was trashed by execute_move)
+        config = Config(vault=tmp_path, cache=cache_path)
+        trash_instruction = MoveInstruction(
+            index=1, category="TRASH", filename="article.md", line_number=-1, is_trash=True
+        )
+        _update_cache_after_moves([trash_instruction], tmp_path, config)
+
+        updated_cache = load_cache(cache_path)
+        entry = updated_cache.get("https://example.com/article")
+        assert entry is not None
+        assert entry.removed is True
+
+    def test_trash_instruction_skipped_when_file_still_exists(self, tmp_path: Path) -> None:
+        """Trash instruction is skipped if source file still exists (move didn't happen)."""
+        from clipmd.config import Config
+        from clipmd.core.cache import load_cache
+
+        cache_path = tmp_path / ".clipmd" / "cache.json"
+        cache_path.parent.mkdir()
+        cache = load_cache(cache_path)
+        cache.add(url="https://example.com/article", filename="article.md", title="Test")
+        cache.save(cache_path)
+
+        # File still exists — trash didn't happen
+        (tmp_path / "article.md").write_text("content")
+
+        config = Config(vault=tmp_path, cache=cache_path)
+        trash_instruction = MoveInstruction(
+            index=1, category="TRASH", filename="article.md", line_number=-1, is_trash=True
+        )
+        _update_cache_after_moves([trash_instruction], tmp_path, config)
+
+        # Cache entry should NOT be marked as removed
+        updated_cache = load_cache(cache_path)
+        entry = updated_cache.get("https://example.com/article")
+        assert entry is not None
+        assert entry.removed is False
+
+    def test_trash_instruction_no_cache_entry(self, tmp_path: Path) -> None:
+        """Trash instruction for uncached file is silently ignored."""
+        from clipmd.config import Config
+        from clipmd.core.cache import load_cache
+
+        cache_path = tmp_path / ".clipmd" / "cache.json"
+        cache_path.parent.mkdir()
+
+        # File is gone, but nothing in cache
+        config = Config(vault=tmp_path, cache=cache_path)
+        trash_instruction = MoveInstruction(
+            index=1, category="TRASH", filename="gone.md", line_number=-1, is_trash=True
+        )
+        _update_cache_after_moves([trash_instruction], tmp_path, config)
+
+        # Cache should remain empty
+        cache = load_cache(cache_path)
+        assert len(cache.entries) == 0

@@ -17,14 +17,11 @@ class TestCacheEntry:
         entry = CacheEntry(
             filename="20240115-Article.md",
             title="My Article",
-            folder="Tech",
         )
         assert entry.filename == "20240115-Article.md"
         assert entry.title == "My Article"
-        assert entry.folder == "Tech"
         assert entry.removed is False
         assert entry.first_seen != ""
-        assert entry.last_seen != ""
 
     def test_to_dict(self) -> None:
         """Test converting entry to dictionary."""
@@ -32,13 +29,11 @@ class TestCacheEntry:
             filename="article.md",
             title="Article",
             first_seen="2024-01-15",
-            last_seen="2024-01-16",
-            content_hash="abc123",
         )
         result = entry.to_dict()
         assert result["filename"] == "article.md"
         assert result["title"] == "Article"
-        assert result["content_hash"] == "abc123"
+        assert result["first_seen"] == "2024-01-15"
         assert "removed_at" not in result
 
     def test_to_dict_with_removed(self) -> None:
@@ -58,16 +53,13 @@ class TestCacheEntry:
         data = {
             "filename": "article.md",
             "title": "Article",
-            "folder": "Tech",
             "first_seen": "2024-01-15",
-            "last_seen": "2024-01-16",
             "removed": False,
-            "content_hash": "abc123",
         }
         entry = CacheEntry.from_dict(data)
         assert entry.filename == "article.md"
-        assert entry.folder == "Tech"
-        assert entry.content_hash == "abc123"
+        assert entry.first_seen == "2024-01-15"
+        assert entry.removed is False
 
 
 class TestCache:
@@ -86,7 +78,6 @@ class TestCache:
             url="https://example.com/article",
             filename="article.md",
             title="Article",
-            folder="Tech",
         )
         assert entry.filename == "article.md"
         assert cache.has_url("https://example.com/article")
@@ -134,10 +125,10 @@ class TestCache:
         cache.add("https://example.com/article", "article.md", "Article")
         entry = cache.update_location(
             "https://example.com/article",
-            folder="NewFolder",
+            filename="renamed.md",
         )
         assert entry is not None
-        assert entry.folder == "NewFolder"
+        assert entry.filename == "renamed.md"
 
     def test_mark_removed(self) -> None:
         """Test marking entry as removed."""
@@ -177,15 +168,6 @@ class TestCache:
         result = cache.find_by_filename("nonexistent.md")
         assert result is None
 
-    def test_find_by_hash(self) -> None:
-        """Test finding entries by content hash."""
-        cache = Cache()
-        cache.add("https://example.com/one", "one.md", "One", content_hash="abc123")
-        cache.add("https://example.com/two", "two.md", "Two", content_hash="abc123")
-        cache.add("https://example.com/three", "three.md", "Three", content_hash="def456")
-        results = cache.find_by_hash("abc123")
-        assert len(results) == 2
-
     def test_get_active_entries(self) -> None:
         """Test getting active entries."""
         cache = Cache()
@@ -205,18 +187,6 @@ class TestCache:
         removed = cache.get_removed_entries()
         assert len(removed) == 1
         assert "https://example.com/two" in removed
-
-    def test_get_entries_by_folder(self) -> None:
-        """Test grouping entries by folder."""
-        cache = Cache()
-        cache.add("https://example.com/one", "one.md", "One", folder="Tech")
-        cache.add("https://example.com/two", "two.md", "Two", folder="Tech")
-        cache.add("https://example.com/three", "three.md", "Three", folder="Science")
-        cache.add("https://example.com/four", "four.md", "Four")
-        by_folder = cache.get_entries_by_folder()
-        assert len(by_folder["Tech"]) == 2
-        assert len(by_folder["Science"]) == 1
-        assert len(by_folder[None]) == 1
 
     def test_clean(self) -> None:
         """Test cleaning entries for missing files."""
@@ -254,11 +224,8 @@ class TestCache:
                 "https://example.com/article": {
                     "filename": "article.md",
                     "title": "Article",
-                    "folder": "Tech",
                     "first_seen": "2024-01-15",
-                    "last_seen": "2024-01-17",
                     "removed": False,
-                    "content_hash": None,
                 }
             },
         }
@@ -360,10 +327,9 @@ class TestCacheUrlCleaning:
 
         result = cache.update_location(
             "https://example.com/article?utm_source=test",
-            folder="Tech",
         )
         assert result is not None
-        assert result.folder == "Tech"
+        assert result.filename == "article.md"
 
     def test_mark_removed_with_utm_url(self) -> None:
         """Test that mark_removed() works with UTM params in URL."""

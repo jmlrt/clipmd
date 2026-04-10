@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import re
@@ -13,7 +14,7 @@ from typing import TYPE_CHECKING
 from send2trash import send2trash
 
 from clipmd.core.cache import load_cache
-from clipmd.core.frontmatter import get_source_url, parse_frontmatter
+from clipmd.core.frontmatter import get_source_url, get_title, parse_frontmatter
 from clipmd.core.rules import match_domain
 from clipmd.core.sanitizer import extract_domain
 
@@ -573,15 +574,33 @@ def _update_cache_after_moves(
             # Update location in cache
             dest_file = (dest_root or source_dir) / instruction.category / instruction.filename
             if not dest_file.exists():
-                continue  # Move failed
+                continue  # Move truly failed (dest doesn't exist)
 
-            # Read frontmatter to get URL
+            # Read frontmatter to get URL. If dest file is unreadable/corrupt, skip
+            # both the cache update and the source trash (conservative: prefer not
+            # losing data over cleaning up the stale source).
             try:
                 content = dest_file.read_text(encoding="utf-8")
                 parsed = parse_frontmatter(content)
                 url = get_source_url(parsed.data, config.frontmatter)
                 if url:
-                    cache.update_location(url, folder=instruction.category)
+                    updated = cache.update_location(url)
+                    if updated is None:
+                        # URL not in cache: article was organized outside clipmd or before
+                        # caching was implemented. Add it now to prevent re-fetching.
+                        title = get_title(parsed.data, config.frontmatter) or dest_file.stem
+                        cache.add(
+                            url=url,
+                            filename=dest_file.name,
+                            title=title,
+                        )
+
+                # If source file still exists, the move was blocked by an existing destination.
+                # Trash the source — the organized destination is the canonical version.
+                source_file = source_dir / instruction.filename
+                if source_file.exists():
+                    with contextlib.suppress(Exception):
+                        send2trash(str(source_file))
             except Exception:
                 pass
 

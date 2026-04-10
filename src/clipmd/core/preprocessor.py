@@ -223,10 +223,11 @@ def find_duplicates(
             if cache.has_active_url(url):
                 entry = cache.get(url)
                 if entry:
-                    # Check if cached file is different from current files
-                    cached_path = Path(entry.folder or ".") / entry.filename
-                    if cached_path not in paths:
-                        paths.append(cached_path)
+                    # Compare by filename only: entry.filename is a bare name and paths
+                    # may be absolute, so full-path comparison would always mismatch.
+                    existing_names = {p.name for p in paths}
+                    if entry.filename not in existing_names:
+                        paths.append(Path(entry.filename))
 
     # Find groups with more than one file
     duplicates = []

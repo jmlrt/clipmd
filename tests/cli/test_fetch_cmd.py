@@ -316,7 +316,7 @@ class TestFetchHelpers:
         <body></body>
         </html>
         """
-        metadata = extract_metadata_from_html(html, "https://example.com")
+        metadata = extract_metadata_from_html(html)
         assert metadata["title"] == "OG Title"  # OG takes precedence
         assert metadata["author"] == "Author Name"
         assert metadata["description"] == "Page description"
@@ -440,16 +440,9 @@ class TestFetchContentExtraction:
 class TestFetchSaveArticle:
     """Tests for saving articles."""
 
-    def test_save_article(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_save_article(self, tmp_path: Path) -> None:
         """Test saving an article to file."""
-        from clipmd.config import load_config
         from clipmd.core.fetcher import save_article
-
-        monkeypatch.chdir(tmp_path)
-
-        config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
-        config = load_config(config_file)
 
         result = FetchResult(
             url="https://example.com/article",
@@ -461,7 +454,7 @@ class TestFetchSaveArticle:
             content="# Test Content\n\nThis is the article content.",
         )
 
-        saved_path = save_article(result, tmp_path, config)
+        saved_path = save_article(result, tmp_path)
 
         assert saved_path is not None
         assert saved_path.exists()
@@ -470,16 +463,9 @@ class TestFetchSaveArticle:
         assert "source: https://example.com/article" in content
         assert "Test Content" in content
 
-    def test_save_article_failed(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_save_article_failed(self, tmp_path: Path) -> None:
         """Test save_article returns None for failed result."""
-        from clipmd.config import load_config
         from clipmd.core.fetcher import save_article
-
-        monkeypatch.chdir(tmp_path)
-
-        config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
-        config = load_config(config_file)
 
         result = FetchResult(
             url="https://example.com/article",
@@ -487,25 +473,18 @@ class TestFetchSaveArticle:
             error="HTTP 404",
         )
 
-        saved_path = save_article(result, tmp_path, config)
+        saved_path = save_article(result, tmp_path)
         assert saved_path is None
 
 
 class TestFetchUrls:
     """Tests for URL fetching."""
 
-    def test_fetch_url_success(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_fetch_url_success(self) -> None:
         """Test successful URL fetch."""
         import asyncio
 
-        from clipmd.config import load_config
         from clipmd.core.fetcher import fetch_url
-
-        monkeypatch.chdir(tmp_path)
-
-        config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
-        config = load_config(config_file)
 
         # Mock HTTP response
         mock_response = AsyncMock()
@@ -525,27 +504,20 @@ class TestFetchUrls:
 
         async def run_test():
             return await fetch_url(
-                mock_client, "https://example.com/article", config, use_readability=False
+                mock_client, "https://example.com/article", use_readability=False
             )
 
         result = asyncio.run(run_test())
         assert result.success
         assert result.title is not None
 
-    def test_fetch_url_http_error(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_fetch_url_http_error(self) -> None:
         """Test HTTP error handling."""
         import asyncio
 
         import httpx
 
-        from clipmd.config import load_config
         from clipmd.core.fetcher import fetch_url
-
-        monkeypatch.chdir(tmp_path)
-
-        config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
-        config = load_config(config_file)
 
         # Mock HTTP error
         mock_response = AsyncMock()
@@ -556,26 +528,19 @@ class TestFetchUrls:
         mock_client.get = AsyncMock(side_effect=error)
 
         async def run_test():
-            return await fetch_url(mock_client, "https://example.com/404", config)
+            return await fetch_url(mock_client, "https://example.com/404")
 
         result = asyncio.run(run_test())
         assert not result.success
         assert "404" in result.error
 
-    def test_fetch_url_request_error(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_fetch_url_request_error(self) -> None:
         """Test request error handling."""
         import asyncio
 
         import httpx
 
-        from clipmd.config import load_config
         from clipmd.core.fetcher import fetch_url
-
-        monkeypatch.chdir(tmp_path)
-
-        config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
-        config = load_config(config_file)
 
         # Mock connection error
         error = httpx.ConnectError("Connection refused")
@@ -584,7 +549,7 @@ class TestFetchUrls:
         mock_client.get = AsyncMock(side_effect=error)
 
         async def run_test():
-            return await fetch_url(mock_client, "https://example.com/error", config)
+            return await fetch_url(mock_client, "https://example.com/error")
 
         result = asyncio.run(run_test())
         assert not result.success
@@ -594,24 +559,13 @@ class TestFetchUrls:
 class TestFetchUrlTracking400Recovery:
     """Tests for HTTP 400 tracking URL recovery in fetch_url."""
 
-    def _make_config(self, tmp_path: Path, monkeypatch) -> object:
-        from clipmd.config import load_config
-
-        monkeypatch.chdir(tmp_path)
-        (tmp_path / "config.yaml").write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
-        return load_config(tmp_path / "config.yaml")
-
-    def test_http_400_with_embedded_tracking_url_recovers(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_http_400_with_embedded_tracking_url_recovers(self) -> None:
         """HTTP 400 on a tracking URL recovers by retrying the embedded destination."""
         import asyncio
 
         import httpx
 
         from clipmd.core.fetcher import fetch_url
-
-        config = self._make_config(tmp_path, monkeypatch)
 
         tracking_url = "https://tracker.example.com/L0/https://actual-dest.com/article"
 
@@ -632,23 +586,19 @@ class TestFetchUrlTracking400Recovery:
         mock_client = AsyncMock()
         mock_client.get = AsyncMock(side_effect=[mock_400_error, mock_success_response])
 
-        result = asyncio.run(fetch_url(mock_client, tracking_url, config, use_readability=False))
+        result = asyncio.run(fetch_url(mock_client, tracking_url, use_readability=False))
 
         assert result.success
         assert result.final_url == "https://actual-dest.com/article"
         assert result.error is None
 
-    def test_http_400_with_embedded_percent_encoded_url_recovers(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_http_400_with_embedded_percent_encoded_url_recovers(self) -> None:
         """HTTP 400 on a percent-encoded tracking URL recovers by retrying decoded destination."""
         import asyncio
 
         import httpx
 
         from clipmd.core.fetcher import fetch_url
-
-        config = self._make_config(tmp_path, monkeypatch)
 
         # Percent-encoded tracking URL
         tracking_url = "https://tracker.example.com/L0/https%3A%2F%2Factual-dest.com%2Farticle"
@@ -669,22 +619,18 @@ class TestFetchUrlTracking400Recovery:
         mock_client = AsyncMock()
         mock_client.get = AsyncMock(side_effect=[mock_400_error, mock_success_response])
 
-        result = asyncio.run(fetch_url(mock_client, tracking_url, config, use_readability=False))
+        result = asyncio.run(fetch_url(mock_client, tracking_url, use_readability=False))
 
         assert result.success
         assert result.final_url == "https://actual-dest.com/article"
 
-    def test_http_400_recovery_fails_includes_details_in_error(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_http_400_recovery_fails_includes_details_in_error(self) -> None:
         """When tracking URL recovery fails, error includes recovered URL and reason."""
         import asyncio
 
         import httpx
 
         from clipmd.core.fetcher import fetch_url
-
-        config = self._make_config(tmp_path, monkeypatch)
 
         tracking_url = "https://tracker.example.com/L0/https://actual-dest.com/article"
 
@@ -703,24 +649,20 @@ class TestFetchUrlTracking400Recovery:
         mock_client = AsyncMock()
         mock_client.get = AsyncMock(side_effect=[mock_400_error, mock_403_error])
 
-        result = asyncio.run(fetch_url(mock_client, tracking_url, config))
+        result = asyncio.run(fetch_url(mock_client, tracking_url))
 
         assert not result.success
         assert "HTTP 400" in result.error
         assert "recovery failed" in result.error
         assert "actual-dest.com" in result.error
 
-    def test_http_400_without_embedded_url_returns_400_error(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_http_400_without_embedded_url_returns_400_error(self) -> None:
         """HTTP 400 on a non-tracking URL sets error to 'HTTP 400' with no recovery attempt."""
         import asyncio
 
         import httpx
 
         from clipmd.core.fetcher import fetch_url
-
-        config = self._make_config(tmp_path, monkeypatch)
 
         mock_400_response = AsyncMock()
         mock_400_response.status_code = 400
@@ -731,7 +673,7 @@ class TestFetchUrlTracking400Recovery:
         mock_client = AsyncMock()
         mock_client.get = AsyncMock(side_effect=mock_400_error)
 
-        result = asyncio.run(fetch_url(mock_client, "https://example.com/regular-page", config))
+        result = asyncio.run(fetch_url(mock_client, "https://example.com/regular-page"))
 
         assert not result.success
         assert result.error == "HTTP 400"
@@ -931,20 +873,11 @@ class TestFetchRssFeedFunction:
 class TestFetchWithReadability:
     """Tests for fetch with readability extraction."""
 
-    def test_fetch_url_with_readability(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_fetch_url_with_readability(self) -> None:
         """Test fetch URL with readability mode."""
         import asyncio
 
-        from clipmd.config import load_config
         from clipmd.core.fetcher import fetch_url
-
-        monkeypatch.chdir(tmp_path)
-
-        config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
-        config = load_config(config_file)
 
         # Mock HTTP response with more complete HTML
         mock_response = AsyncMock()
@@ -970,27 +903,16 @@ class TestFetchWithReadability:
         mock_client.get = AsyncMock(return_value=mock_response)
 
         async def run_test():
-            return await fetch_url(
-                mock_client, "https://example.com/article", config, use_readability=True
-            )
+            return await fetch_url(mock_client, "https://example.com/article", use_readability=True)
 
         result = asyncio.run(run_test())
         assert result.success
 
-    def test_fetch_with_metadata_fallback(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_fetch_with_metadata_fallback(self) -> None:
         """Test that BeautifulSoup fallback extracts metadata when trafilatura fails."""
         import asyncio
 
-        from clipmd.config import load_config
         from clipmd.core.fetcher import fetch_url
-
-        monkeypatch.chdir(tmp_path)
-
-        config_file = tmp_path / "config.yaml"
-        config_file.write_text("version: 1\nvault: .\ncache: .clipmd/cache.json\n")
-        config = load_config(config_file)
 
         # Mock HTML with rich metadata in meta tags
         # Trafilatura might miss these, but BeautifulSoup will catch them
@@ -1027,7 +949,6 @@ class TestFetchWithReadability:
                 return await fetch_url(
                     mock_client,
                     "https://example.com/article",
-                    config,
                     use_readability=True,
                 )
 
