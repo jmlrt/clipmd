@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 from send2trash import send2trash
 
 from clipmd.core.cache import load_cache
-from clipmd.core.frontmatter import get_source_url, parse_frontmatter
+from clipmd.core.frontmatter import get_source_url, get_title, parse_frontmatter
 from clipmd.core.rules import match_domain
 from clipmd.core.sanitizer import extract_domain
 
@@ -586,8 +586,7 @@ def _update_cache_after_moves(
                     if updated is None:
                         # URL not in cache: article was organized outside clipmd or before
                         # caching was implemented. Add it now to prevent re-fetching.
-                        title_raw = parsed.data.get("title", "")
-                        title = str(title_raw) if title_raw else dest_file.stem
+                        title = get_title(parsed.data, config.frontmatter) or dest_file.stem
                         cache.add(
                             url=url,
                             filename=dest_file.name,

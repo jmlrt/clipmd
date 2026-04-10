@@ -224,7 +224,7 @@ def find_duplicates(
                 entry = cache.get(url)
                 if entry:
                     # Check if cached file is different from current files
-                    cached_path = Path(entry.folder or ".") / entry.filename
+                    cached_path = Path(entry.filename)
                     if cached_path not in paths:
                         paths.append(cached_path)
 

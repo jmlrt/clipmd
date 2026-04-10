@@ -115,7 +115,6 @@ def extract_metadata_from_html(html: str) -> dict:
 
     Args:
         html: HTML content.
-        url: Source URL.
 
     Returns:
         Dictionary with extracted metadata.
@@ -282,7 +281,6 @@ async def fetch_url(
     Args:
         client: HTTP client.
         url: URL to fetch.
-        config: Application configuration.
         use_readability: Whether to use readability extraction.
 
     Returns:
