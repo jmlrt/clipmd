@@ -27,6 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `triage` command no longer re-fetches articles whose source URL redirects to a different domain (e.g. blog migration): both the pre-redirect and final URL are now cached after a successful fetch
+- `triage` command now shows the full list of move errors instead of truncating at 5
 - `triage` command no longer re-fetches articles that were previously organized into subdirectories but had no cache entry (e.g. articles organized before caching was implemented)
 - `triage` command no longer leaves stale source files in vault root after a blocked move — the source is now trashed automatically since the organized destination is the canonical version
 - `fetch` command no longer re-fetches manually removed URLs (always skips URLs marked as removed in cache)

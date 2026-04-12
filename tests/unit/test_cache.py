@@ -6,7 +6,13 @@ import json
 from pathlib import Path
 
 from clipmd.config import Config
-from clipmd.core.cache import Cache, CacheEntry, filter_duplicate_urls, load_cache
+from clipmd.core.cache import (
+    Cache,
+    CacheEntry,
+    filter_duplicate_urls,
+    load_cache,
+    update_cache_after_fetch,
+)
 
 
 class TestCacheEntry:
@@ -481,3 +487,79 @@ class TestFilterDuplicateUrls:
         )
         # Should have read the absolute-path cache and found the entry
         assert "https://example.com/article" in result.skipped_urls
+
+
+class TestUpdateCacheAfterFetch:
+    """Tests for update_cache_after_fetch."""
+
+    def _make_config(self, cache_path: Path) -> Config:
+        from clipmd.config import load_config
+
+        config_file = cache_path.parent / "config.yaml"
+        config_file.write_text(f"version: 1\nvault: .\ncache: {cache_path}\n")
+        return load_config(config_file)
+
+    def test_both_urls_cached_on_redirect(self, tmp_path: Path) -> None:
+        """When final_url differs from url, both are indexed in cache."""
+        from clipmd.core.fetcher import FetchResult
+
+        cache_path = tmp_path / "cache.json"
+        config = self._make_config(cache_path)
+
+        result = FetchResult(
+            url="https://tarekziade.github.io/2025/11/21/article/",
+            final_url="https://blog.ziade.org/2025/11/21/article",
+            filename="20251121-article.md",
+            title="Article Title",
+            success=True,
+        )
+        update_cache_after_fetch([result], config)
+
+        cache = load_cache(cache_path)
+        # Final URL must be cached
+        assert cache.has_active_url("https://blog.ziade.org/2025/11/21/article")
+        # Original (pre-redirect) URL must also be cached so future RSS cycles skip it
+        assert cache.has_active_url("https://tarekziade.github.io/2025/11/21/article/")
+        # Both entries point to the same file
+        entry_final = cache.get("https://blog.ziade.org/2025/11/21/article")
+        entry_original = cache.get("https://tarekziade.github.io/2025/11/21/article/")
+        assert entry_final is not None
+        assert entry_original is not None
+        assert entry_final.filename == "20251121-article.md"
+        assert entry_original.filename == "20251121-article.md"
+
+    def test_no_duplicate_entry_when_urls_identical(self, tmp_path: Path) -> None:
+        """When url and final_url are the same, only one cache entry is created."""
+        from clipmd.core.fetcher import FetchResult
+
+        cache_path = tmp_path / "cache.json"
+        config = self._make_config(cache_path)
+
+        result = FetchResult(
+            url="https://example.com/article",
+            final_url="https://example.com/article",
+            filename="article.md",
+            title="Article",
+            success=True,
+        )
+        update_cache_after_fetch([result], config)
+
+        cache = load_cache(cache_path)
+        assert len(cache.entries) == 1
+
+    def test_failed_fetch_not_cached(self, tmp_path: Path) -> None:
+        """Failed fetches are not added to cache."""
+        from clipmd.core.fetcher import FetchResult
+
+        cache_path = tmp_path / "cache.json"
+        config = self._make_config(cache_path)
+
+        result = FetchResult(
+            url="https://example.com/article",
+            success=False,
+            error="HTTP 404",
+        )
+        update_cache_after_fetch([result], config)
+
+        cache = load_cache(cache_path)
+        assert not cache.has_url("https://example.com/article")
